@@ -2165,10 +2165,6 @@ tbody td {
     <div class="login-footer">
       <i class="fas fa-shield-halved" style="margin-right:4px;"></i>
       Sistema protegido – Acesso restrito a servidores autorizados
-      <br>
-      <span onclick="resetarSistemaEmergencia()" style="cursor:pointer;color:var(--gray-300);font-size:10px;margin-top:6px;display:inline-block;" title="Usar apenas se não conseguir fazer login">
-        <i class="fas fa-redo" style="margin-right:3px;"></i>Resetar credenciais de acesso
-      </span>
     </div>
   </div>
 </div>
@@ -2447,6 +2443,9 @@ tbody td {
         <h1>Visão Geral</h1>
         <p>Painel de gestão da equipe da Secretaria de Cultura</p>
       </div>
+      <button class="btn btn-secondary" onclick="exportPagePDF('page-dashboard', 'Dashboard')">
+        <i class="fas fa-file-pdf"></i> Exportar PDF
+      </button>
     </div>
 
     <div class="stats-grid">
@@ -2501,6 +2500,9 @@ tbody td {
         <p>Listagem completa com filtros, busca e gerenciamento</p>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="exportPagePDF('page-servidores', 'Servidores')">
+          <i class="fas fa-file-pdf"></i> Exportar PDF
+        </button>
         <button class="btn btn-primary admin-write-only" onclick="openModalAdd()">
           <i class="fas fa-plus"></i> Adicionar Servidor
         </button>
@@ -2601,6 +2603,9 @@ tbody td {
         <h1>Calendário de Aniversários</h1>
         <p>Clique em um mês para ver o calendário detalhado</p>
       </div>
+      <button class="btn btn-secondary" onclick="exportPagePDF('page-calendario', 'Calendario_Aniversarios')">
+        <i class="fas fa-file-pdf"></i> Exportar PDF
+      </button>
     </div>
 
     <div class="cal-header">
@@ -2686,6 +2691,9 @@ tbody td {
         <h1><i class="fas fa-user-shield" style="color:var(--sky);margin-right:8px;"></i>Painel do Administrador</h1>
         <p>Gerencie usuários, permissões e solicitações de acesso</p>
       </div>
+      <button class="btn btn-secondary" onclick="exportPagePDF('page-admin', 'Painel_Admin')">
+        <i class="fas fa-file-pdf"></i> Exportar PDF
+      </button>
     </div>
 
     <div class="admin-grid">
@@ -2812,7 +2820,7 @@ tbody td {
           </div>
         </div>
         <div style="margin-top:12px;">
-          <button class="btn btn-secondary" onclick="clearAuditLog()" style="font-size:11px;">
+          <button class="btn btn-secondary master-admin-only" onclick="clearAuditLog()" style="font-size:11px;display:none;">
             <i class="fas fa-eraser"></i> Limpar log
           </button>
         </div>
@@ -3314,7 +3322,13 @@ function enterApp() {
 
   // Hide restore button for non-admin
   const restoreBtn = document.querySelector('.sidebar-footer button');
-  if (restoreBtn) restoreBtn.style.display = isAdmin ? '' : 'none';
+  if (restoreBtn) restoreBtn.style.display = (isAdmin && currentUser.email && currentUser.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase()) ? '' : 'none';
+
+  // Master admin only elements
+  const isMaster = isAdmin && currentUser.email && currentUser.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+  document.querySelectorAll('.master-admin-only').forEach(el => {
+    el.style.display = isMaster ? '' : 'none';
+  });
 
   // Update pending badge
   if (isAdmin) {
@@ -3879,6 +3893,11 @@ function renderAuditLog() {
 }
 
 function clearAuditLog() {
+  if (!requireAdmin('limpar log')) return;
+  if (!isMasterAdmin()) {
+    showToast('Apenas o administrador master pode limpar o log de auditoria.', 'error');
+    return;
+  }
   if (!confirm('Tem certeza que deseja limpar todo o log de auditoria?')) return;
   DB.clearAuditLog();
   renderAuditLog();
@@ -4089,8 +4108,18 @@ function handleLogoUpload(input) {
   input.value = '';
 }
 
+const MASTER_ADMIN_EMAIL = 'otaviosalmeida@hotmail.com';
+
+function isMasterAdmin() {
+  return currentUser && currentUser.email && currentUser.email.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+}
+
 function restaurarDadosOriginais() {
   if (!requireAdmin('restaurar dados')) return;
+  if (!isMasterAdmin()) {
+    showToast('Apenas o administrador master pode restaurar dados.', 'error');
+    return;
+  }
   if (!confirm('Atenção: isso apagará todos os cadastros feitos e voltará para a lista original. Deseja continuar?')) return;
   try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
   location.reload();
@@ -5099,23 +5128,103 @@ async function submitForgotPassword() {
 }
 
 // ===== RESET DE EMERGÊNCIA (tela de login) =====
-function resetarSistemaEmergencia() {
-  if (!confirm(
-    'ATENÇÃO: Isso vai resetar APENAS as credenciais de login.\n\n' +
-    'Os dados dos servidores NÃO serão apagados.\n\n' +
-    'Após o reset, use:\n' +
-    'Email: admin@sistema.local\n' +
-    'Senha: MudeEstaSenha!2024\n\n' +
-    'Deseja continuar?'
-  )) return;
+// ===== EXPORTAR PÁGINA EM PDF =====
+function exportPagePDF(pageId, fileName) {
+  const page = document.getElementById(pageId);
+  if (!page) {
+    showToast('Página não encontrada.', 'error');
+    return;
+  }
 
-  // Remove apenas os dados de usuários/sessão, preserva servidores
-  localStorage.removeItem('sgc_users');
-  localStorage.removeItem('sgc_session');
-  localStorage.removeItem('sgc_requests');
+  // Feedback visual
+  showToast('Gerando PDF...', 'success');
 
-  // Recarregar para recriar o admin padrão
-  location.reload();
+  // Temporariamente tornar a página visível para captura (se estiver oculta)
+  const wasHidden = !page.classList.contains('active');
+  if (wasHidden) page.style.display = 'block';
+
+  html2canvas(page, {
+    scale: 1.5,
+    backgroundColor: '#f8fafc',
+    useCORS: true,
+    logging: false,
+    windowWidth: 1200,
+    onclone: function(doc) {
+      // Garantir que o conteúdo clonado esteja visível
+      const clonedPage = doc.getElementById(pageId);
+      if (clonedPage) {
+        clonedPage.style.display = 'block';
+        clonedPage.style.padding = '20px';
+      }
+    }
+  }).then(canvas => {
+    if (wasHidden) page.style.display = '';
+
+    const { jsPDF } = window.jspdf;
+    const imgData = canvas.toDataURL('image/png');
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+
+    // Calcular dimensões do PDF (A4)
+    const pdfWidth = 210; // mm
+    const pdfHeight = 297; // mm
+    const margin = 10; // mm
+    const contentWidth = pdfWidth - (margin * 2);
+    const ratio = contentWidth / imgWidth;
+    const contentHeight = imgHeight * ratio;
+
+    const pdf = new jsPDF({
+      orientation: contentHeight > pdfHeight ? 'portrait' : 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    // Se o conteúdo é maior que uma página, paginar
+    let yPosition = margin;
+    const pageContentHeight = pdfHeight - (margin * 2);
+    let remainingHeight = contentHeight;
+    let sourceY = 0;
+
+    while (remainingHeight > 0) {
+      if (yPosition !== margin) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+
+      const sliceHeight = Math.min(remainingHeight, pageContentHeight);
+      const sliceRatio = sliceHeight / ratio;
+
+      // Criar canvas parcial para esta página
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = imgWidth;
+      pageCanvas.height = Math.ceil(sliceRatio);
+      const ctx = pageCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, sourceY, imgWidth, Math.ceil(sliceRatio), 0, 0, imgWidth, Math.ceil(sliceRatio));
+
+      const pageImgData = pageCanvas.toDataURL('image/png');
+      pdf.addImage(pageImgData, 'PNG', margin, yPosition, contentWidth, sliceHeight);
+
+      // Rodapé com data
+      pdf.setFontSize(7);
+      pdf.setTextColor(150);
+      pdf.text(
+        `Secretaria de Cultura – Araçatuba | Exportado em ${new Date().toLocaleString('pt-BR')}`,
+        pdfWidth / 2, pdfHeight - 5,
+        { align: 'center' }
+      );
+
+      remainingHeight -= sliceHeight;
+      sourceY += Math.ceil(sliceRatio);
+    }
+
+    const date = new Date().toISOString().split('T')[0];
+    pdf.save(`${fileName}_${date}.pdf`);
+    showToast('PDF exportado com sucesso!', 'success');
+  }).catch(err => {
+    if (wasHidden) page.style.display = '';
+    console.error('Erro ao gerar PDF:', err);
+    showToast('Erro ao gerar PDF. Tente novamente.', 'error');
+  });
 }
 
 // ===== UTILS =====
