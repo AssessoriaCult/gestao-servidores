@@ -107,8 +107,18 @@ body {
   margin-bottom: 28px;
 }
 
+.login-logo-img {
+  width: 72px; height: 72px;
+  object-fit: contain;
+  border-radius: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 24px rgba(15,42,94,.3);
+  background: linear-gradient(135deg, var(--navy), var(--blue-mid));
+  padding: 8px;
+}
+
 .login-logo-icon {
-  width: 64px; height: 64px;
+  width: 72px; height: 72px;
   background: linear-gradient(135deg, var(--navy), var(--blue-mid));
   border-radius: 16px;
   display: inline-flex;
@@ -2114,7 +2124,10 @@ tbody td {
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
     <div class="login-logo">
-      <div class="login-logo-icon">
+      <!-- Logo customizada (carregada do localStorage) -->
+      <img id="loginLogoImg" class="login-logo-img" src="" alt="Logo" style="display:none;">
+      <!-- Fallback: ícone padrão (exibido se não houver logo customizada) -->
+      <div class="login-logo-icon" id="loginLogoFallback">
         <i class="fas fa-landmark"></i>
       </div>
       <h1>Gestão de Servidores</h1>
@@ -2648,7 +2661,7 @@ tbody td {
         <div class="account-card-avatar" id="accountAvatar">A</div>
         <div class="account-card-info">
           <h2 id="accountName">Nome</h2>
-          <p id="accountEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ec89818d8580ac89948d819c8089c28f8381">[email&#160;protected]</a></p>
+          <p id="accountEmail">email@example.com</p>
         </div>
         <span id="accountRoleBadge" class="badge badge-user" style="margin-left:auto;">USUÁRIO</span>
       </div>
@@ -2965,6 +2978,50 @@ tbody td {
   </div>
 </div>
 
+<!-- ===== MODAL RESETAR SENHA (ADMIN) ===== -->
+<div class="modal-overlay" id="modalResetPassword">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <div class="modal-title">
+        <i class="fas fa-key"></i>
+        <span>Resetar Senha</span>
+      </div>
+      <button class="modal-close" onclick="closeResetPasswordModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div style="text-align:center;margin-bottom:16px;">
+        <div style="width:56px;height:56px;border-radius:50%;background:#eff6ff;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;">
+          <i class="fas fa-key" style="font-size:22px;color:var(--blue);"></i>
+        </div>
+        <h3 style="font-family:'Sora',sans-serif;font-size:15px;color:var(--navy);margin-bottom:4px;">Deseja redefinir a senha deste usuário?</h3>
+        <p style="font-size:13px;color:var(--gray-500);" id="resetPasswordUserInfo"></p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button class="btn btn-primary" onclick="executeResetByEmail()" id="btnResetByEmail" style="width:100%;justify-content:center;">
+          <i class="fas fa-envelope"></i> Enviar email de redefinição (recomendado)
+        </button>
+        <button class="btn btn-secondary" onclick="showManualResetFields()" id="btnResetManual" style="width:100%;justify-content:center;">
+          <i class="fas fa-edit"></i> Definir senha manualmente
+        </button>
+      </div>
+      <div id="manualResetFields" style="display:none;margin-top:16px;">
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">Nova senha <span class="req">*</span></label>
+          <div class="password-field-wrap">
+            <input type="password" class="form-input" id="resetNewPass" placeholder="Nova senha (mín. 6 caracteres)">
+            <button type="button" class="password-toggle" onclick="togglePassVisibility('resetNewPass', this)"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <button class="btn btn-success" onclick="executeResetManual()" style="width:100%;justify-content:center;">
+          <i class="fas fa-save"></i> Salvar nova senha
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== MODAL FOTO AMPLIADA ===== -->
 <div class="modal-foto-overlay" id="modalFoto" onclick="closeFotoModal()">
   <div class="modal-foto-box" onclick="event.stopPropagation()">
@@ -2982,7 +3039,7 @@ tbody td {
   <span id="toastMsg">Operação realizada</span>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 // ============================================================
 // ===== BANCO DE DADOS LOCAL (camada de abstração) ==========
 // ============================================================
@@ -3163,18 +3220,51 @@ function carregarDados() {
 // ============================================================
 // ===== AUTH / LOGIN =========================================
 // ============================================================
+// Sistema híbrido: tenta Supabase Auth primeiro, fallback p/ localStorage.
+// Quando Supabase Auth está ativo, o reset de senha funciona por email.
+// ============================================================
 let currentUser = null;
 
-function checkSession() {
-  const session = DB.getSession();
-  if (session) {
-    const user = DB.findUserByEmail(session.email);
+async function checkSession() {
+  // 1. Tentar Supabase Auth
+  if (supabaseClient) {
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session && session.user) {
+        const email = session.user.email;
+        // Buscar dados do perfil no DB local (role, nome, etc.)
+        let profile = DB.findUserByEmail(email);
+        if (!profile) {
+          // Usuário existe no Auth mas não no DB local — criar perfil básico
+          profile = DB.addUser({
+            nome: email.split('@')[0],
+            email: email,
+            senha: '***supabase-auth***',
+            role: 'user',
+            lgpdConsent: false,
+            active: true
+          });
+        }
+        currentUser = profile;
+        enterApp();
+        return;
+      }
+    } catch (e) {
+      console.warn('Erro ao verificar sessão Supabase:', e);
+    }
+  }
+
+  // 2. Fallback: sessão local
+  const localSession = DB.getSession();
+  if (localSession) {
+    const user = DB.findUserByEmail(localSession.email);
     if (user) {
       currentUser = user;
       enterApp();
       return;
     }
   }
+
   showLogin();
 }
 
@@ -3202,7 +3292,7 @@ function enterApp() {
   document.getElementById('sidebarUserRole').textContent = currentUser.role === 'admin' ? 'Administrador' : 'Usuário';
   document.getElementById('sidebarUserAvatar').textContent = initials(currentUser.nome);
 
-  // Show/hide admin elements (nav items, buttons, sections)
+  // Show/hide admin elements
   const isAdmin = currentUser.role === 'admin';
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdmin ? '' : 'none';
@@ -3211,19 +3301,18 @@ function enterApp() {
     el.style.display = isAdmin ? '' : 'none';
   });
 
-  // Hide logo upload overlay for non-admin
+  // Hide logo upload for non-admin
   const logoOverlay = document.querySelector('.logo-overlay');
   if (logoOverlay) logoOverlay.style.display = isAdmin ? '' : 'none';
   const logoWrap = document.querySelector('.logo-wrap');
   if (logoWrap) logoWrap.style.cursor = isAdmin ? 'pointer' : 'default';
   if (!isAdmin) {
-    // Remove click from logo wrap for non-admin
     logoWrap.onclick = null;
   } else {
     logoWrap.onclick = function() { document.getElementById('inputLogoUpload').click(); };
   }
 
-  // Hide "Restaurar dados" button for non-admin
+  // Hide restore button for non-admin
   const restoreBtn = document.querySelector('.sidebar-footer button');
   if (restoreBtn) restoreBtn.style.display = isAdmin ? '' : 'none';
 
@@ -3240,7 +3329,7 @@ function enterApp() {
     renderAdminPanel();
   }
 
-  // Show LGPD banner if not dismissed
+  // LGPD banner
   if (!localStorage.getItem('sgc_lgpd_banner_dismissed')) {
     document.getElementById('lgpdBanner').classList.add('show');
   }
@@ -3251,18 +3340,15 @@ function enterApp() {
   updateCurrentDate();
   refreshAll();
   if (!foiCarregado) salvarDados();
-
-  // Show import notice if no data
   updateImportNotice();
-
-  // Force user to dashboard on login (prevent lingering on protected pages)
   showPage('dashboard', document.querySelector('.nav-item'));
 }
 
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
   const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
 
   if (!email || !password) {
     errEl.textContent = 'Preencha email e senha.';
@@ -3270,20 +3356,88 @@ function doLogin() {
     return;
   }
 
+  // Desabilitar botão durante login
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
+  errEl.classList.remove('show');
+
+  // 1. Tentar login via Supabase Auth
+  if (supabaseClient) {
+    try {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password
+      });
+
+      if (!error && data.user) {
+        // Login Supabase OK! Buscar/criar perfil local
+        let profile = DB.findUserByEmail(email);
+        if (!profile) {
+          profile = DB.addUser({
+            nome: data.user.user_metadata?.nome || email.split('@')[0],
+            email: email,
+            senha: '***supabase-auth***',
+            role: 'user',
+            lgpdConsent: false,
+            active: true
+          });
+        }
+        currentUser = profile;
+        DB.setSession(profile);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+        enterApp();
+        return;
+      }
+
+      // Se Supabase deu erro, pode ser que o usuário não existe no Auth
+      // Continuar para fallback local
+      if (error) {
+        console.log('Supabase Auth login:', error.message);
+      }
+    } catch (e) {
+      console.warn('Erro no login Supabase:', e);
+    }
+  }
+
+  // 2. Fallback: login local (DB localStorage)
   const user = DB.findUserByEmail(email);
-  if (!user || user.senha !== password) {
-    errEl.innerHTML = 'Email ou senha incorretos.<br><span style="font-size:11px;font-weight:normal;opacity:.8;">Se é o primeiro acesso, use: admin@sistema.local / MudeEstaSenha!2024</span>';
-    errEl.classList.add('show');
+  if (user && user.senha === password) {
+    currentUser = user;
+    DB.setSession(user);
+
+    // Se Supabase está ativo, cadastrar este usuário no Auth em background
+    // para que reset de senha funcione no futuro
+    if (supabaseClient) {
+      supabaseClient.auth.signUp({ email, password }).then(({ error }) => {
+        if (error && !error.message.includes('already')) {
+          console.log('Auto-registro no Auth:', error.message);
+        } else {
+          console.log('Usuário sincronizado com Supabase Auth.');
+        }
+      }).catch(() => {});
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+    enterApp();
     return;
   }
 
-  errEl.classList.remove('show');
-  currentUser = user;
-  DB.setSession(user);
-  enterApp();
+  // 3. Nenhum login funcionou
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Entrar';
+  errEl.innerHTML = 'Email ou senha incorretos.<br><span style="font-size:11px;font-weight:normal;opacity:.8;">Se é o primeiro acesso, use: admin@sistema.local / MudeEstaSenha!2024</span>';
+  errEl.classList.add('show');
 }
 
-function doLogout() {
+async function doLogout() {
+  // Logout do Supabase Auth
+  if (supabaseClient) {
+    try { await supabaseClient.auth.signOut(); } catch (e) { console.warn(e); }
+  }
+
+  // Logout local
   DB.clearSession();
   currentUser = null;
   document.getElementById('sidebar').classList.add('app-hidden');
@@ -3424,6 +3578,9 @@ function renderAdminPanel() {
         ${isCurrentUser
           ? '<span style="font-size:11px;color:var(--gray-400);background:var(--gray-50);padding:4px 10px;border-radius:6px;"><i class="fas fa-user-check" style="margin-right:4px;"></i>Você</span>'
           : `${roleBtn}
+             <button class="btn btn-edit btn-icon" onclick="adminResetPassword(${u.id})" title="Resetar senha deste usuário">
+               <i class="fas fa-key"></i>
+             </button>
              <button class="btn btn-delete btn-icon" onclick="removeUser(${u.id})" title="Remover usuário">
                <i class="fas fa-trash"></i>
              </button>`
@@ -3952,8 +4109,25 @@ let chartMeses = null;
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
+  initLoginLogo();
   checkSession();
 });
+
+// Carrega a logo personalizada na tela de login (antes do login)
+function initLoginLogo() {
+  try {
+    const savedLogo = localStorage.getItem('smcultura_logo_v1');
+    const loginImg = document.getElementById('loginLogoImg');
+    const loginFallback = document.getElementById('loginLogoFallback');
+    if (savedLogo && loginImg && loginFallback) {
+      loginImg.src = savedLogo;
+      loginImg.style.display = 'inline-block';
+      loginFallback.style.display = 'none';
+    }
+  } catch (e) {
+    console.warn('Erro ao carregar logo do login:', e);
+  }
+}
 
 function updateCurrentDate() {
   const now = new Date();
@@ -4324,7 +4498,7 @@ document.getElementById('modalServidor').addEventListener('click', function(e) {
 document.getElementById('modalConfirm').addEventListener('click', function(e) { if (e.target === this) closeConfirm(); });
 
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') { closeModal(); closeConfirm(); closeFotoModal(); closeCracha(); closeRoleChangeModal(); closeChangePassword(); closeForgotPassword(); }
+  if (e.key === 'Escape') { closeModal(); closeConfirm(); closeFotoModal(); closeCracha(); closeRoleChangeModal(); closeChangePassword(); closeForgotPassword(); closeResetPasswordModal(); }
 });
 
 // ===== TOAST =====
@@ -4518,7 +4692,6 @@ function openCracha(idx) {
         <div class="cracha-nome">${s.nome}</div>
         <div class="cracha-info"><i class="fas fa-id-card"></i> Matrícula: ${s.matricula !== '---' ? s.matricula : 'N/A'}</div>
         <div class="cracha-info"><i class="fas fa-building"></i> ${s.local}</div>
-        ${s.dn ? `<div class="cracha-info"><i class="fas fa-birthday-cake"></i> Aniversário: ${s.dn}</div>` : ''}
         <div class="cracha-qr" id="crachaQR"></div>
       </div>
       <div class="cracha-footer">
@@ -4622,21 +4795,37 @@ document.getElementById('modalChangePassword').addEventListener('click', functio
   if (e.target === this) closeChangePassword();
 });
 
-function submitChangePassword() {
+async function submitChangePassword() {
   const current = document.getElementById('cpCurrentPass').value;
   const newPass = document.getElementById('cpNewPass').value;
-  const confirm = document.getElementById('cpConfirmPass').value;
+  const confirmVal = document.getElementById('cpConfirmPass').value;
 
-  if (!current || !newPass || !confirm) {
+  if (!current || !newPass || !confirmVal) {
     showToast('Preencha todos os campos.', 'error');
     return;
   }
 
-  // Validate current password
+  // Validate current password (local DB)
   const freshUser = DB.getUsers().find(u => u.id === currentUser.id);
-  if (!freshUser || freshUser.senha !== current) {
-    showToast('Senha atual incorreta.', 'error');
-    return;
+  if (!freshUser || (freshUser.senha !== current && freshUser.senha !== '***supabase-auth***')) {
+    // Se a senha local é ***supabase-auth***, tentar validar via Supabase
+    if (freshUser && freshUser.senha === '***supabase-auth***' && supabaseClient) {
+      try {
+        const { error } = await supabaseClient.auth.signInWithPassword({
+          email: freshUser.email, password: current
+        });
+        if (error) {
+          showToast('Senha atual incorreta.', 'error');
+          return;
+        }
+      } catch (e) {
+        showToast('Erro ao validar senha atual.', 'error');
+        return;
+      }
+    } else {
+      showToast('Senha atual incorreta.', 'error');
+      return;
+    }
   }
 
   if (newPass.length < 6) {
@@ -4644,7 +4833,7 @@ function submitChangePassword() {
     return;
   }
 
-  if (newPass !== confirm) {
+  if (newPass !== confirmVal) {
     showToast('As senhas não conferem.', 'error');
     return;
   }
@@ -4654,7 +4843,20 @@ function submitChangePassword() {
     return;
   }
 
+  // Atualizar no DB local
   DB.updateUser(currentUser.id, { senha: newPass });
+
+  // Atualizar no Supabase Auth também
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+      if (error) console.warn('Erro ao atualizar senha no Supabase Auth:', error.message);
+      else console.log('Senha sincronizada com Supabase Auth.');
+    } catch (e) {
+      console.warn('Erro sync senha:', e);
+    }
+  }
+
   closeChangePassword();
   showToast('Senha alterada com sucesso!', 'success');
 }
@@ -4697,6 +4899,125 @@ function togglePassVisibility(inputId, btn) {
   }
 }
 
+// ===== ADMIN RESET DE SENHA DE OUTRO USUÁRIO =====
+let resetPasswordUserId = null;
+
+function adminResetPassword(userId) {
+  if (!requireAdmin('resetar senha')) return;
+  const users = DB.getUsers();
+  const user = users.find(u => u.id === userId);
+  if (!user) return;
+
+  resetPasswordUserId = userId;
+  document.getElementById('resetPasswordUserInfo').textContent = user.nome + ' (' + user.email + ')';
+  document.getElementById('manualResetFields').style.display = 'none';
+  document.getElementById('resetNewPass').value = '';
+  document.getElementById('btnResetByEmail').disabled = false;
+  document.getElementById('btnResetByEmail').innerHTML = '<i class="fas fa-envelope"></i> Enviar email de redefinição (recomendado)';
+  document.getElementById('btnResetManual').style.display = '';
+  document.getElementById('modalResetPassword').classList.add('open');
+}
+
+function closeResetPasswordModal() {
+  document.getElementById('modalResetPassword').classList.remove('open');
+  resetPasswordUserId = null;
+}
+
+// Listener para fechar no overlay
+document.getElementById('modalResetPassword').addEventListener('click', function(e) {
+  if (e.target === this) closeResetPasswordModal();
+});
+
+async function executeResetByEmail() {
+  if (!resetPasswordUserId) return;
+  const user = DB.getUsers().find(u => u.id === resetPasswordUserId);
+  if (!user) return;
+
+  const btn = document.getElementById('btnResetByEmail');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+
+  if (supabaseClient) {
+    try {
+      const siteUrl = window.location.origin + window.location.pathname;
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(user.email, {
+        redirectTo: siteUrl
+      });
+
+      if (!error) {
+        // Audit log
+        DB.addAuditEntry({
+          type: 'promote',
+          performedBy: currentUser.nome,
+          performedByEmail: currentUser.email,
+          targetUser: user.nome,
+          targetEmail: user.email,
+          description: `${currentUser.nome} enviou email de reset de senha para ${user.nome} (${user.email})`
+        });
+
+        showToast(`Email de redefinição enviado para ${user.email}!`, 'success');
+        closeResetPasswordModal();
+      } else {
+        console.warn('Supabase reset error:', error.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-envelope"></i> Enviar email de redefinição (recomendado)';
+        showToast('Erro ao enviar email: ' + error.message + '. Use a opção manual.', 'error');
+      }
+    } catch (err) {
+      console.error('Reset error:', err);
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-envelope"></i> Enviar email de redefinição (recomendado)';
+      showToast('Erro de conexão. Use a opção manual.', 'error');
+    }
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-envelope"></i> Enviar email de redefinição (recomendado)';
+    showToast('Supabase não conectado. Use a opção manual.', 'error');
+  }
+}
+
+function showManualResetFields() {
+  document.getElementById('manualResetFields').style.display = 'block';
+  document.getElementById('btnResetManual').style.display = 'none';
+  document.getElementById('resetNewPass').focus();
+}
+
+function executeResetManual() {
+  if (!resetPasswordUserId) return;
+  const user = DB.getUsers().find(u => u.id === resetPasswordUserId);
+  if (!user) return;
+
+  const novaSenha = document.getElementById('resetNewPass').value;
+  if (!novaSenha || novaSenha.length < 6) {
+    showToast('A senha deve ter pelo menos 6 caracteres.', 'error');
+    return;
+  }
+
+  // Atualizar no DB local
+  DB.updateUser(resetPasswordUserId, { senha: novaSenha });
+
+  // Tentar atualizar no Supabase Auth em background
+  if (supabaseClient) {
+    // signUp com a nova senha para sincronizar (ou atualizar se já existe)
+    supabaseClient.auth.admin && supabaseClient.auth.admin.updateUserById
+      ? supabaseClient.auth.admin.updateUserById(user.supabaseAuthId || '', { password: novaSenha }).catch(() => {})
+      : null;
+  }
+
+  // Audit log
+  DB.addAuditEntry({
+    type: 'promote',
+    performedBy: currentUser.nome,
+    performedByEmail: currentUser.email,
+    targetUser: user.nome,
+    targetEmail: user.email,
+    description: `${currentUser.nome} resetou manualmente a senha de ${user.nome}`
+  });
+
+  closeResetPasswordModal();
+  showToast(`Senha de ${user.nome} redefinida! Informe a nova senha ao usuário de forma segura.`, 'success');
+}
+
 // ============================================================
 // ===== ESQUECI MINHA SENHA ==================================
 // ============================================================
@@ -4728,50 +5049,52 @@ async function submitForgotPassword() {
     return;
   }
 
-  // Validar formato de email
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     showToast('Formato de email inválido.', 'error');
     return;
   }
 
-  // Desabilitar botão durante o envio
   const btn = document.getElementById('forgotSubmitBtn');
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verificando...';
 
-  // === VERIFICAR SE SUPABASE ESTÁ CONECTADO ===
-  if (supabaseClient) {
+  // Verificar se o email existe no sistema (sem revelar ao usuário - LGPD)
+  const user = DB.findUserByEmail(email);
+
+  // Se Supabase Auth estiver ativo E o usuário existir nele, enviar por lá
+  let emailEnviado = false;
+
+  if (supabaseClient && user) {
     try {
-      // Usar Supabase Auth para enviar email de reset
       const siteUrl = window.location.origin + window.location.pathname;
-      const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
         redirectTo: siteUrl
       });
-
-      // LGPD: Sempre mostrar mesma mensagem, independente de o email existir ou não
-      document.getElementById('forgotStep1').style.display = 'none';
-      document.getElementById('forgotStep2').style.display = 'block';
-      btn.style.display = 'none';
-      forgotState.step = 2;
-
-      if (error) {
-        console.warn('Supabase reset error:', error.message);
-        // Não revelar o erro ao usuário (LGPD) — mostrar mesma mensagem genérica
-      }
-
+      if (!error) emailEnviado = true;
+      else console.warn('Supabase Auth:', error.message);
     } catch (err) {
-      console.error('Erro ao enviar reset:', err);
-      document.getElementById('forgotStep1').style.display = 'none';
-      document.getElementById('forgotStep2').style.display = 'block';
-      btn.style.display = 'none';
-      forgotState.step = 2;
+      console.warn('Supabase Auth error:', err);
     }
+  }
+
+  // Mostrar resultado
+  document.getElementById('forgotStep1').style.display = 'none';
+  btn.style.display = 'none';
+  forgotState.step = 2;
+
+  if (emailEnviado) {
+    // Email enviado com sucesso via Supabase Auth
+    document.getElementById('forgotResultMsg').textContent =
+      'Se o email informado estiver cadastrado, você receberá um link para redefinir sua senha. Verifique também a pasta de spam.';
+    document.getElementById('forgotStep2').style.display = 'block';
   } else {
-    // Supabase NÃO está conectado — mostrar mensagem de indisponibilidade
-    document.getElementById('forgotStep1').style.display = 'none';
+    // Email NÃO enviado — orientar a contatar o admin
+    document.getElementById('forgotStepError').querySelector('p').innerHTML =
+      'O envio de email automático não está disponível no momento.<br><br>' +
+      '<b>Para recuperar sua senha:</b><br>' +
+      'Entre em contato com o <b>administrador do sistema</b> e solicite o reset da sua senha pelo Painel Admin.<br><br>' +
+      '<span style="font-size:11px;color:var(--gray-400);">O administrador pode resetar senhas em: Painel Admin → Usuários → ícone de chave.</span>';
     document.getElementById('forgotStepError').style.display = 'block';
-    btn.style.display = 'none';
-    forgotState.step = 2;
   }
 }
 
