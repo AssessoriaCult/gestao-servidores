@@ -11,6 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <style>
 /* ===== RESET & BASE ===== */
@@ -2208,45 +2209,35 @@ tbody td {
       </button>
     </div>
     <div class="modal-body">
+      <!-- Step 1: Pedir email -->
       <div id="forgotStep1">
         <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px;">
-          Informe seu email cadastrado. Se ele estiver no sistema, você receberá instruções para redefinir sua senha.
+          Informe seu email cadastrado. Se ele estiver no sistema, você receberá um link por email para redefinir sua senha.
         </p>
         <div class="form-group">
           <label class="form-label">Email <span class="req">*</span></label>
           <input type="email" class="form-input" id="forgotEmail" placeholder="Seu email institucional">
         </div>
       </div>
+      <!-- Step 2: Confirmação (sempre igual — LGPD) -->
       <div id="forgotStep2" style="display:none;">
         <div style="text-align:center;padding:12px 0;">
           <div style="width:56px;height:56px;border-radius:50%;background:#d1fae5;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;">
             <i class="fas fa-envelope-open-text" style="font-size:22px;color:#065f46;"></i>
           </div>
           <h3 style="font-family:'Sora',sans-serif;font-size:15px;color:var(--navy);margin-bottom:8px;">Verifique seu email</h3>
-          <p style="font-size:13px;color:var(--gray-500);line-height:1.5;">Se o email informado estiver cadastrado no sistema, você receberá instruções para redefinir sua senha.</p>
-          <p style="font-size:11px;color:var(--gray-400);margin-top:12px;"><i class="fas fa-info-circle" style="margin-right:4px;"></i>O link expira em 1 hora.</p>
+          <p style="font-size:13px;color:var(--gray-500);line-height:1.5;" id="forgotResultMsg">Se o email informado estiver cadastrado, você receberá um link para redefinir sua senha.</p>
+          <p style="font-size:11px;color:var(--gray-400);margin-top:12px;"><i class="fas fa-info-circle" style="margin-right:4px;"></i>O link expira em 1 hora. Verifique também a pasta de spam.</p>
         </div>
       </div>
-      <!-- Step 3: Direct reset (fallback local — sem servidor de email) -->
-      <div id="forgotStep3" style="display:none;">
-        <div style="text-align:center;margin-bottom:16px;">
-          <div style="width:56px;height:56px;border-radius:50%;background:#eff6ff;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;">
-            <i class="fas fa-lock-open" style="font-size:20px;color:var(--blue);"></i>
+      <!-- Step Error: Supabase não configurado -->
+      <div id="forgotStepError" style="display:none;">
+        <div style="text-align:center;padding:12px 0;">
+          <div style="width:56px;height:56px;border-radius:50%;background:#fef2f2;display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;">
+            <i class="fas fa-exclamation-triangle" style="font-size:22px;color:#ef4444;"></i>
           </div>
-          <h3 style="font-family:'Sora',sans-serif;font-size:15px;color:var(--navy);margin-bottom:4px;">Redefinir senha</h3>
-          <p style="font-size:12px;color:var(--gray-400);" id="forgotResetUser"></p>
-        </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label class="form-label">Nova senha <span class="req">*</span></label>
-          <div class="password-field-wrap">
-            <input type="password" class="form-input" id="forgotNewPass" placeholder="Nova senha (mín. 6 caracteres)" oninput="updateForgotStrength()">
-            <button type="button" class="password-toggle" onclick="togglePassVisibility('forgotNewPass', this)"><i class="fas fa-eye"></i></button>
-          </div>
-          <div class="password-strength"><div class="password-strength-bar" id="forgotStrengthBar"></div></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Confirmar nova senha <span class="req">*</span></label>
-          <input type="password" class="form-input" id="forgotConfirmPass" placeholder="Repita a nova senha">
+          <h3 style="font-family:'Sora',sans-serif;font-size:15px;color:var(--navy);margin-bottom:8px;">Serviço indisponível</h3>
+          <p style="font-size:13px;color:var(--gray-500);line-height:1.5;">A recuperação de senha por email não está disponível no momento. Entre em contato com o administrador do sistema para redefinir sua senha manualmente.</p>
         </div>
       </div>
     </div>
@@ -2653,7 +2644,7 @@ tbody td {
         <div class="account-card-avatar" id="accountAvatar">A</div>
         <div class="account-card-info">
           <h2 id="accountName">Nome</h2>
-          <p id="accountEmail">email@example.com</p>
+          <p id="accountEmail"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ec89818d8580ac89948d819c8089c28f8381">[email&#160;protected]</a></p>
         </div>
         <span id="accountRoleBadge" class="badge badge-user" style="margin-left:auto;">USUÁRIO</span>
       </div>
@@ -2987,7 +2978,7 @@ tbody td {
   <span id="toastMsg">Operação realizada</span>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ============================================================
 // ===== BANCO DE DADOS LOCAL (camada de abstração) ==========
 // ============================================================
@@ -3005,6 +2996,20 @@ tbody td {
 const SUPABASE_URL = 'https://rvwrvxofuueddfxyfhce.supabase.co'; // Ex: 'https://xxxx.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2d3J2eG9mdXVlZGRmeHlmaGNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwOTIwNzQsImV4cCI6MjA4OTY2ODA3NH0.k750I4f6XC4JuzI-P9m4Ti70NsLyvYjDuXUmJXQYy2Y'; // Ex: 'eyJhbGciO...'
 const USE_SUPABASE = SUPABASE_URL && SUPABASE_KEY;
+
+// ---------- SUPABASE CLIENT ----------
+let supabase = null;
+if (USE_SUPABASE && typeof window.supabase !== 'undefined') {
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log('Supabase conectado com sucesso.');
+  } catch (e) {
+    console.warn('Erro ao conectar Supabase:', e);
+    supabase = null;
+  }
+} else if (USE_SUPABASE) {
+  console.warn('SDK do Supabase não carregou. Sistema usando localStorage.');
+}
 
 // ---------- DB LOCAL ----------
 const DB = {
@@ -4678,125 +4683,79 @@ function togglePassVisibility(inputId, btn) {
 // ============================================================
 // ===== ESQUECI MINHA SENHA ==================================
 // ============================================================
-let forgotState = { step: 1, userId: null, token: null };
+let forgotState = { step: 1 };
 
 function openForgotPassword() {
-  forgotState = { step: 1, userId: null, token: null };
+  forgotState = { step: 1 };
   document.getElementById('forgotEmail').value = '';
   document.getElementById('forgotStep1').style.display = 'block';
   document.getElementById('forgotStep2').style.display = 'none';
-  document.getElementById('forgotStep3').style.display = 'none';
+  document.getElementById('forgotStepError').style.display = 'none';
   document.getElementById('forgotSubmitBtn').style.display = '';
   document.getElementById('forgotSubmitBtn').innerHTML = '<i class="fas fa-paper-plane"></i> Enviar';
+  document.getElementById('forgotSubmitBtn').disabled = false;
   document.getElementById('forgotOverlay').classList.add('open');
 }
 
 function closeForgotPassword() {
   document.getElementById('forgotOverlay').classList.remove('open');
-  forgotState = { step: 1, userId: null, token: null };
+  forgotState = { step: 1 };
 }
 
-function submitForgotPassword() {
-  if (forgotState.step === 1) {
-    // Step 1: Validate email
-    const email = document.getElementById('forgotEmail').value.trim();
-    if (!email) {
-      showToast('Informe seu email.', 'error');
-      return;
-    }
+async function submitForgotPassword() {
+  if (forgotState.step !== 1) return;
 
-    const user = DB.findUserByEmail(email);
-
-    // LGPD: Always show same message (don't reveal if email exists)
-    document.getElementById('forgotStep1').style.display = 'none';
-    document.getElementById('forgotStep2').style.display = 'block';
-
-    if (user) {
-      // Since we don't have email sending, we generate a local token and allow direct reset
-      const token = Math.random().toString(36).substr(2, 12) + Date.now().toString(36);
-      const tokens = JSON.parse(localStorage.getItem('sgc_reset_tokens') || '{}');
-      tokens[token] = { userId: user.id, email: user.email, created: Date.now(), used: false };
-      localStorage.setItem('sgc_reset_tokens', JSON.stringify(tokens));
-
-      forgotState.userId = user.id;
-      forgotState.token = token;
-
-      // After 2s, show direct reset form (local fallback)
-      setTimeout(() => {
-        document.getElementById('forgotStep2').style.display = 'none';
-        document.getElementById('forgotStep3').style.display = 'block';
-        document.getElementById('forgotResetUser').textContent = user.email;
-        document.getElementById('forgotNewPass').value = '';
-        document.getElementById('forgotConfirmPass').value = '';
-        document.getElementById('forgotSubmitBtn').innerHTML = '<i class="fas fa-save"></i> Redefinir senha';
-        forgotState.step = 3;
-      }, 2000);
-    } else {
-      // Email not found — still show generic message, but hide submit
-      document.getElementById('forgotSubmitBtn').style.display = 'none';
-    }
-
-    forgotState.step = 2;
+  const email = document.getElementById('forgotEmail').value.trim();
+  if (!email) {
+    showToast('Informe seu email.', 'error');
     return;
   }
 
-  if (forgotState.step === 3) {
-    // Step 3: Reset the password
-    const newPass = document.getElementById('forgotNewPass').value;
-    const confirmPass = document.getElementById('forgotConfirmPass').value;
-
-    if (!newPass || !confirmPass) {
-      showToast('Preencha todos os campos.', 'error');
-      return;
-    }
-
-    if (newPass.length < 6) {
-      showToast('A senha deve ter pelo menos 6 caracteres.', 'error');
-      return;
-    }
-
-    if (newPass !== confirmPass) {
-      showToast('As senhas não conferem.', 'error');
-      return;
-    }
-
-    // Validate token
-    const tokens = JSON.parse(localStorage.getItem('sgc_reset_tokens') || '{}');
-    const tokenData = tokens[forgotState.token];
-
-    if (!tokenData || tokenData.used) {
-      showToast('Token inválido ou já utilizado.', 'error');
-      closeForgotPassword();
-      return;
-    }
-
-    // Check expiration (1 hour)
-    if (Date.now() - tokenData.created > 3600000) {
-      showToast('Token expirado. Solicite um novo reset.', 'error');
-      delete tokens[forgotState.token];
-      localStorage.setItem('sgc_reset_tokens', JSON.stringify(tokens));
-      closeForgotPassword();
-      return;
-    }
-
-    // Apply password change
-    DB.updateUser(forgotState.userId, { senha: newPass });
-
-    // Mark token as used
-    tokenData.used = true;
-    localStorage.setItem('sgc_reset_tokens', JSON.stringify(tokens));
-
-    closeForgotPassword();
-    showToast('Senha redefinida com sucesso! Faça login com a nova senha.', 'success');
+  // Validar formato de email
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showToast('Formato de email inválido.', 'error');
+    return;
   }
-}
 
-function updateForgotStrength() {
-  const pass = document.getElementById('forgotNewPass').value;
-  const { pct, color } = calcPasswordStrength(pass);
-  const bar = document.getElementById('forgotStrengthBar');
-  bar.style.width = pct + '%';
-  bar.style.background = color;
+  // Desabilitar botão durante o envio
+  const btn = document.getElementById('forgotSubmitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+
+  // === VERIFICAR SE SUPABASE ESTÁ CONECTADO ===
+  if (supabase) {
+    try {
+      // Usar Supabase Auth para enviar email de reset
+      const siteUrl = window.location.origin + window.location.pathname;
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: siteUrl
+      });
+
+      // LGPD: Sempre mostrar mesma mensagem, independente de o email existir ou não
+      document.getElementById('forgotStep1').style.display = 'none';
+      document.getElementById('forgotStep2').style.display = 'block';
+      btn.style.display = 'none';
+      forgotState.step = 2;
+
+      if (error) {
+        console.warn('Supabase reset error:', error.message);
+        // Não revelar o erro ao usuário (LGPD) — mostrar mesma mensagem genérica
+      }
+
+    } catch (err) {
+      console.error('Erro ao enviar reset:', err);
+      document.getElementById('forgotStep1').style.display = 'none';
+      document.getElementById('forgotStep2').style.display = 'block';
+      btn.style.display = 'none';
+      forgotState.step = 2;
+    }
+  } else {
+    // Supabase NÃO está conectado — mostrar mensagem de indisponibilidade
+    document.getElementById('forgotStep1').style.display = 'none';
+    document.getElementById('forgotStepError').style.display = 'block';
+    btn.style.display = 'none';
+    forgotState.step = 2;
+  }
 }
 
 // ===== UTILS =====
