@@ -7133,3 +7133,221 @@ function exportFeriasPDF() {
 
 </body>
 </html>
+<script>
+// ===============================
+// 🔐 USUÁRIO LOGADO (SIMULAÇÃO)
+// ===============================
+let currentUser = JSON.parse(localStorage.getItem("currentUser")) || {
+  id: 1,
+  nome: "Funcionário Teste",
+  tipo: "funcionario" // "admin" ou "funcionario"
+};
+
+// ===============================
+// 💾 BASE DE DADOS
+// ===============================
+let feriasDB = JSON.parse(localStorage.getItem("feriasDB")) || [];
+
+// ===============================
+// 📌 SALVAR
+// ===============================
+function salvarFerias() {
+  localStorage.setItem("feriasDB", JSON.stringify(feriasDB));
+}
+
+// ===============================
+// 📊 RENDER TABELA (ALTERADA)
+// ===============================
+function renderFeriasTable() {
+  const tbody = document.getElementById("feriasTbody");
+  tbody.innerHTML = "";
+
+  let lista = [...feriasDB];
+
+  // 🔥 FILTRO PRINCIPAL
+  if (currentUser.tipo === "funcionario") {
+    lista = lista.filter(f => f.usuarioId === currentUser.id);
+  }
+
+  if (lista.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;">Nenhum registro encontrado</td></tr>`;
+    return;
+  }
+
+  lista.forEach(f => {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${f.servidor}</td>
+      <td><span class="badge-tipo ${f.tipo}">${f.tipo}</span></td>
+      <td>${f.inicio}</td>
+      <td>${f.fim}</td>
+      <td>${f.dias}</td>
+      <td><span class="badge-status ${f.status}">${f.status}</span></td>
+      <td>${f.local || "-"}</td>
+      <td class="td-actions">
+        ${renderAcoes(f)}
+      </td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ===============================
+// 🎯 AÇÕES DINÂMICAS
+// ===============================
+function renderAcoes(f) {
+  // 👤 FUNCIONÁRIO
+  if (currentUser.tipo === "funcionario") {
+    return `<span style="font-size:11px;color:#999;">Aguardando</span>`;
+  }
+
+  // 👑 ADMIN
+  if (f.status === "pendente") {
+    return `
+      <button class="btn btn-success btn-icon" onclick="aprovarFerias(${f.id})">✔</button>
+      <button class="btn btn-danger-light btn-icon" onclick="rejeitarFerias(${f.id})">✖</button>
+    `;
+  }
+
+  return `<span style="font-size:11px;color:#999;">-</span>`;
+}
+
+// ===============================
+// ✅ APROVAR / REJEITAR
+// ===============================
+function aprovarFerias(id) {
+  const f = feriasDB.find(x => x.id === id);
+  if (!f) return;
+
+  f.status = "aprovado";
+  salvarFerias();
+  renderFeriasTable();
+}
+
+function rejeitarFerias(id) {
+  const f = feriasDB.find(x => x.id === id);
+  if (!f) return;
+
+  f.status = "rejeitado";
+  salvarFerias();
+  renderFeriasTable();
+}
+
+// ===============================
+// ➕ NOVO REGISTRO / SOLICITAÇÃO
+// ===============================
+function openModalFerias() {
+  if (currentUser.tipo === "funcionario") {
+    abrirModalSolicitacao();
+  } else {
+    alert("Admin continua usando o modal atual.");
+  }
+}
+
+// ===============================
+// 📝 MODAL FUNCIONÁRIO
+// ===============================
+function abrirModalSolicitacao() {
+  const modal = document.createElement("div");
+  modal.className = "modal-overlay open";
+
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Solicitar Férias / Abonada</div>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="tipoFerias" class="form-input">
+            <option value="ferias">Férias</option>
+            <option value="abonada">Abonada</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Data Início</label>
+          <input type="date" id="inicioFerias" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label>Data Fim</label>
+          <input type="date" id="fimFerias" class="form-input">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="salvarSolicitacao()">Solicitar</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+}
+
+// ===============================
+// 💾 SALVAR SOLICITAÇÃO
+// ===============================
+function salvarSolicitacao() {
+  const tipo = document.getElementById("tipoFerias").value;
+  const inicio = document.getElementById("inicioFerias").value;
+  const fim = document.getElementById("fimFerias").value;
+
+  if (!inicio || !fim) {
+    alert("Preencha as datas!");
+    return;
+  }
+
+  const dias = calcularDias(inicio, fim);
+
+  const novo = {
+    id: Date.now(),
+    usuarioId: currentUser.id,
+    servidor: currentUser.nome,
+    tipo,
+    inicio,
+    fim,
+    dias,
+    status: "pendente",
+    local: "-"
+  };
+
+  feriasDB.push(novo);
+  salvarFerias();
+
+  document.querySelector(".modal-overlay").remove();
+  renderFeriasTable();
+}
+
+// ===============================
+// 📅 CALCULAR DIAS
+// ===============================
+function calcularDias(inicio, fim) {
+  const d1 = new Date(inicio);
+  const d2 = new Date(fim);
+  return Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24)) + 1;
+}
+
+// ===============================
+// 🎨 AJUSTE VISUAL POR PERFIL
+// ===============================
+function aplicarPermissoesUI() {
+  if (currentUser.tipo === "funcionario") {
+    // esconder filtros avançados
+    const filtroLocal = document.getElementById("fFiltroLocal");
+    if (filtroLocal) filtroLocal.style.display = "none";
+  }
+}
+
+// ===============================
+// 🚀 INIT
+// ===============================
+document.addEventListener("DOMContentLoaded", () => {
+  aplicarPermissoesUI();
+  renderFeriasTable();
+});
+</script>
