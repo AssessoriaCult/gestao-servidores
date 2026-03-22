@@ -7137,11 +7137,10 @@ function exportFeriasPDF() {
 // ===============================
 // 🔐 USUÁRIO LOGADO (SIMULAÇÃO)
 // ===============================
-let currentUser = JSON.parse(localStorage.getItem("currentUser")) || {
-  id: 1,
-  nome: "Funcionário Teste",
-  tipo: "funcionario" // "admin" ou "funcionario"
-};
+// usar o usuário já existente no sistema
+function getCurrentUser() {
+  return currentUser; // usa o que já existe
+}
 
 // ===============================
 // 💾 BASE DE DADOS
@@ -7165,8 +7164,8 @@ function renderFeriasTable() {
   let lista = [...feriasDB];
 
   // 🔥 FILTRO PRINCIPAL
-  if (currentUser.tipo === "funcionario") {
-    lista = lista.filter(f => f.usuarioId === currentUser.id);
+  if (getCurrentUser.tipo === "funcionario") {
+    lista = lista.filter(f => f.usuarioId === getCurrentUser.id);
   }
 
   if (lista.length === 0) {
@@ -7199,7 +7198,7 @@ function renderFeriasTable() {
 // ===============================
 function renderAcoes(f) {
   // 👤 FUNCIONÁRIO
-  if (currentUser.tipo === "funcionario") {
+  if (getCurrentUser.tipo === "funcionario") {
     return `<span style="font-size:11px;color:#999;">Aguardando</span>`;
   }
 
@@ -7239,7 +7238,7 @@ function rejeitarFerias(id) {
 // ➕ NOVO REGISTRO / SOLICITAÇÃO
 // ===============================
 function openModalFerias() {
-  if (currentUser.tipo === "funcionario") {
+  if (getCurrentUser.tipo === "funcionario") {
     abrirModalSolicitacao();
   } else {
     alert("Admin continua usando o modal atual.");
@@ -7306,8 +7305,8 @@ function salvarSolicitacao() {
 
   const novo = {
     id: Date.now(),
-    usuarioId: currentUser.id,
-    servidor: currentUser.nome,
+    usuarioId: getCurrentUser.id,
+    servidor: getCurrentUser.nome,
     tipo,
     inicio,
     fim,
@@ -7336,7 +7335,7 @@ function calcularDias(inicio, fim) {
 // 🎨 AJUSTE VISUAL POR PERFIL
 // ===============================
 function aplicarPermissoesUI() {
-  if (currentUser.tipo === "funcionario") {
+  if (getCurrentUser.tipo === "funcionario") {
     // esconder filtros avançados
     const filtroLocal = document.getElementById("fFiltroLocal");
     if (filtroLocal) filtroLocal.style.display = "none";
