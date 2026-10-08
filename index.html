@@ -3791,7 +3791,7 @@ function salvarDados() {
 }
 
 async function carregarDados() {
-  loadFerias();
+  await loadFerias();
   // Tentar Supabase primeiro
   if (DB._online) {
     try {
@@ -6786,14 +6786,48 @@ let feriasCalYear = new Date().getFullYear();
 const FERIAS_KEY = 'sgc_ferias';
 
 // --- Persistência ---
-function loadFerias() {
+async function loadFerias() {
+  // Tenta carregar do Supabase primeiro
+  if (supabaseClient && DB._online) {
+    try {
+      const { data, error } = await supabaseClient.from('ferias_abonadas').select('*').order('created_at', { ascending: false });
+      if (!error && data) {
+        feriasData = data.map(row => ({
+          id: row.id,
+          servidor: row.servidor_nome,
+          tipo: row.tipo,
+          dataInicio: row.data_inicio,
+          dataFim: row.data_fim || row.data_inicio,
+          dias: row.dias || 1,
+          status: row.status,
+          obs: row.observacao || '',
+          local: row.local || '',
+          criadoPor: row.criado_por || '',
+          criadoEm: row.created_at,
+          _fromCloud: true
+        }));
+        // Atualiza cache local
+        localStorage.setItem(FERIAS_KEY, JSON.stringify(feriasData));
+        console.log('Férias: ' + data.length + ' registros carregados da nuvem.');
+        return;
+      }
+      console.warn('Férias: erro ao carregar da nuvem:', error?.message);
+    } catch(e) {
+      console.warn('Férias: falha ao acessar nuvem:', e.message);
+    }
+  }
+  // Fallback: localStorage
   try { feriasData = JSON.parse(localStorage.getItem(FERIAS_KEY)) || []; } catch(e) { feriasData = []; }
+  console.log('Férias: ' + feriasData.length + ' registros do cache local.');
 }
-function saveFerias() {
+
+async function saveFerias() {
   localStorage.setItem(FERIAS_KEY, JSON.stringify(feriasData));
   // Sync to Supabase
   if (supabaseClient && DB._online) {
-    supabaseClient.from('ferias_abonadas').delete().neq('id', 0).then(() => {
+    try {
+      // Apaga tudo e reinsere (estratégia simples para manter sincronia)
+      await supabaseClient.from('ferias_abonadas').delete().neq('id', 0);
       if (feriasData.length > 0) {
         const batch = feriasData.map(f => ({
           servidor_nome: f.servidor, tipo: f.tipo, data_inicio: f.dataInicio,
@@ -6801,17 +6835,24 @@ function saveFerias() {
           status: f.status, observacao: f.obs || '', local: f.local || '',
           criado_por: f.criadoPor || ''
         }));
-        supabaseClient.from('ferias_abonadas').insert(batch).then(r => {
-          if (r.error) console.warn('Ferias sync error:', r.error.message);
-        });
+        const { error } = await supabaseClient.from('ferias_abonadas').insert(batch);
+        if (error) {
+          console.warn('Férias sync erro:', error.message);
+          showToast('Salvo localmente. Erro ao sincronizar com a nuvem.', 'warning');
+        } else {
+          console.log('Férias: ' + batch.length + ' registros sincronizados com a nuvem.');
+        }
       }
-    }).catch(e => console.warn('Ferias sync:', e));
+    } catch(e) {
+      console.warn('Férias sync falha:', e.message);
+      showToast('Salvo localmente. Nuvem indisponível.', 'warning');
+    }
   }
 }
 
 // --- Renderização ---
-function renderFeriasPage() {
-  loadFerias();
+async function renderFeriasPage() {
+  await loadFerias();
   populateFeriasServidorSelect();
   populateFeriasLocalFilter();
   renderFeriasStats();
@@ -7014,7 +7055,7 @@ function populateFeriasLocalFilter() {
     locais.map(l => '<option value="' + l.nome + '">' + l.nome + '</option>').join('');
 }
 
-function salvarFerias() {
+async function salvarFerias() {
   const servidor = document.getElementById('fServidor').value;
   const tipo = document.getElementById('fTipo').value;
   const dataInicio = document.getElementById('fDataInicio').value;
@@ -7052,19 +7093,19 @@ function salvarFerias() {
     });
   }
 
-  saveFerias();
+  await saveFerias();
   closeModalFerias();
-  renderFeriasPage();
+  await renderFeriasPage();
   showToast(editingFeriasId ? 'Registro atualizado!' : 'Registro criado!', 'success');
 }
 
 function editFerias(id) { openModalFerias(id); }
 
-function deleteFerias(id) {
+async function deleteFerias(id) {
   if (!confirm('Excluir este registro?')) return;
   feriasData = feriasData.filter(f => f.id !== id);
-  saveFerias();
-  renderFeriasPage();
+  await saveFerias();
+  await renderFeriasPage();
   showToast('Registro excluído.', 'success');
 }
 
