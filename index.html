@@ -13,7 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 
 <style>
 
@@ -3464,13 +3464,41 @@ const DB = {
 
   async init() {
     if (supabaseClient) {
-      try {
-        const { data, error } = await supabaseClient.from('locais').select('id').limit(1);
-        if (!error) { this._online = true; console.log('DB: Modo NUVEM ativo.'); return; }
-      } catch(e) {}
+      // Tenta conectar até 3 vezes com intervalo crescente
+      for (let tentativa = 1; tentativa <= 3; tentativa++) {
+        try {
+          const { data, error } = await supabaseClient.from('locais').select('id').limit(1);
+          if (!error) {
+            this._online = true;
+            console.log('DB: Modo NUVEM ativo (tentativa ' + tentativa + ').');
+            return;
+          }
+          console.warn('DB: Tentativa ' + tentativa + ' falhou:', error?.message);
+        } catch(e) {
+          console.warn('DB: Tentativa ' + tentativa + ' erro:', e.message);
+        }
+        if (tentativa < 3) {
+          await new Promise(r => setTimeout(r, tentativa * 2000));
+        }
+      }
     }
     this._online = false;
-    console.log('DB: Supabase offline. Cache local.');
+    console.warn('DB: Supabase offline. Usando cache local. Os dados só ficam neste computador.');
+    // Tenta reconectar em background a cada 30 segundos
+    if (supabaseClient) {
+      this._reconectarInterval = setInterval(async () => {
+        try {
+          const { data, error } = await supabaseClient.from('locais').select('id').limit(1);
+          if (!error) {
+            this._online = true;
+            console.log('DB: Reconectado ao Supabase!');
+            clearInterval(this._reconectarInterval);
+            // Recarrega a página para sincronizar tudo
+            location.reload();
+          }
+        } catch(e) {}
+      }, 30000);
+    }
   },
 
   // === USERS ===
