@@ -3584,11 +3584,36 @@ const IS_RECOVERY_LINK = /(^|[#&])type=recovery(&|$)/.test(AUTH_HASH);
 const AUTH_LINK_ERROR = /(^|[#&])error_code=/.test(AUTH_HASH);
 let recoveryModalShown = false;
 
+// Onde a sessão de login fica guardada. A biblioteca testa o localStorage uma
+// única vez ao carregar e, se esse teste falhar (já aconteceu no Chrome da
+// Prefeitura), passa a descartar a sessão em silêncio: o login "funciona", mas as
+// consultas saem como anônimas e o RLS devolve tudo vazio. Este adaptador grava
+// direto no navegador e, se não conseguir, mantém a sessão na memória da página.
+const armazenamentoSessao = (() => {
+  const memoria = {};
+  return {
+    getItem(k) {
+      try { const v = window.localStorage.getItem(k); if (v !== null) return v; } catch (e) {}
+      return Object.prototype.hasOwnProperty.call(memoria, k) ? memoria[k] : null;
+    },
+    setItem(k, v) {
+      memoria[k] = v;
+      try { window.localStorage.setItem(k, v); } catch (e) {}
+    },
+    removeItem(k) {
+      delete memoria[k];
+      try { window.localStorage.removeItem(k); } catch (e) {}
+    }
+  };
+})();
+
 let supabaseClient = null;
 try {
   const sbLib = window.supabase;
   if (sbLib && typeof sbLib.createClient === 'function') {
-    supabaseClient = sbLib.createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabaseClient = sbLib.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { storage: armazenamentoSessao, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
     supabaseClient.auth.onAuthStateChange(event => {
       if (event === 'PASSWORD_RECOVERY') setTimeout(openRecoveryModal, 0);
     });
@@ -4090,6 +4115,13 @@ async function iniciarSessao(authUser) {
   const guardadoValido = perfilGuardado && perfilGuardado.auth_uid === authUser.id ? perfilGuardado : null;
 
   if (DB._online) {
+    // Sem sessão guardada, as consultas sairiam como anônimas e o perfil viria vazio
+    let sessao = null;
+    try { sessao = (await supabaseClient.auth.getSession()).data.session; } catch (e) {}
+    if (!sessao) {
+      showLogin('O navegador não conseguiu guardar a sessão de login. Recarregue a página (Ctrl+F5) e tente de novo.');
+      return false;
+    }
     let r;
     try { r = await buscarPerfil(authUser); } catch (e) { r = { erro: e }; }
     if (r.erro) {
