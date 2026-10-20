@@ -3852,8 +3852,17 @@ const DB = {
     if (!error) await supabaseClient.from('ferias_abonadas').update({ local: novo }).eq('local', antigo);
     return error ? { ok: false, error } : { ok: true };
   },
-  async renomearServidorEmFerias(antigo, novo) {
-    try { await supabaseClient.from('ferias_abonadas').update({ servidor_nome: novo }).eq('servidor_nome', antigo); } catch (e) {}
+  // Atualiza a cópia do nome nos registros de férias do servidor renomeado
+  async renomearServidorEmFerias(id, antigo, novo) {
+    try {
+      if (this._feriasComId !== false) {
+        const { error } = await supabaseClient.from('ferias_abonadas').update({ servidor_nome: novo }).eq('servidor_id', id);
+        if (!error || !this._semColunaServidorId(error)) return;
+        this._feriasComId = false;
+      }
+      // Antes da migração o vínculo ainda é pelo nome
+      await supabaseClient.from('ferias_abonadas').update({ servidor_nome: novo }).eq('servidor_nome', antigo);
+    } catch (e) {}
   },
   // Importação em lote. Modo 'replace': grava os novos e SÓ DEPOIS remove os
   // antigos; se a gravação falhar no meio, desfaz e nada se perde.
@@ -3861,25 +3870,50 @@ const DB = {
     if (!this._online) return { ok: false, error: SEM_CONEXAO };
     let antigos = [];
     if (modo === 'replace') {
-      const { data, error } = await supabaseClient.from('servidores').select('id');
+      const { data, error } = await supabaseClient.from('servidores').select('id,nome');
       if (error) return { ok: false, error };
-      antigos = (data || []).map(r => r.id);
+      antigos = data || [];
     }
     const novos = [];
     for (let i = 0; i < lista.length; i += 50) {
       const lote = lista.slice(i, i + 50).map(linhaServidor);
-      const { data, error } = await supabaseClient.from('servidores').insert(lote).select('id');
+      const { data, error } = await supabaseClient.from('servidores').insert(lote).select('id,nome');
       if (error) {
-        if (novos.length) await supabaseClient.from('servidores').delete().in('id', novos);
+        if (novos.length) await supabaseClient.from('servidores').delete().in('id', novos.map(r => r.id));
         return { ok: false, error };
       }
-      (data || []).forEach(r => novos.push(r.id));
+      (data || []).forEach(r => novos.push(r));
     }
+    if (antigos.length) await this._transferirFerias(antigos, novos);
     for (let i = 0; i < antigos.length; i += 200) {
-      const { error } = await supabaseClient.from('servidores').delete().in('id', antigos.slice(i, i + 200));
+      const { error } = await supabaseClient.from('servidores').delete().in('id', antigos.slice(i, i + 200).map(r => r.id));
       if (error) return { ok: false, error, parcial: true };
     }
     return { ok: true, count: novos.length };
+  },
+  // Na substituição, as férias passam do registro antigo para o novo de mesmo
+  // nome (só quando o nome é único nas duas listas); as demais ficam sem vínculo
+  async _transferirFerias(antigos, novos) {
+    if (this._feriasComId === false) return;
+    const unicos = lista => {
+      const cont = {};
+      lista.forEach(s => { cont[s.nome] = (cont[s.nome] || 0) + 1; });
+      const mapa = {};
+      lista.forEach(s => { if (cont[s.nome] === 1) mapa[s.nome] = s.id; });
+      return mapa;
+    };
+    const novoPorNome = unicos(novos), antigoPorNome = unicos(antigos);
+    const comFerias = new Set();
+    for (let i = 0; i < antigos.length; i += 200) {
+      const { data, error } = await supabaseClient.from('ferias_abonadas').select('servidor_id')
+        .in('servidor_id', antigos.slice(i, i + 200).map(r => r.id));
+      if (error) { if (this._semColunaServidorId(error)) this._feriasComId = false; return; }
+      (data || []).forEach(r => comFerias.add(r.servidor_id));
+    }
+    for (const s of antigos) {
+      if (!comFerias.has(s.id) || antigoPorNome[s.nome] !== s.id || novoPorNome[s.nome] == null) continue;
+      await supabaseClient.from('ferias_abonadas').update({ servidor_id: novoPorNome[s.nome] }).eq('servidor_id', s.id);
+    }
   },
   async apagarTodosServidores() {
     if (!this._online) return { ok: false, error: SEM_CONEXAO };
@@ -4005,20 +4039,38 @@ const DB = {
   },
 
   // === FÉRIAS E ABONADAS ===
+  // O vínculo com o servidor é a coluna servidor_id. Enquanto a migração que
+  // a cria não for aplicada, os registros são gravados só com o nome.
+  _feriasComId: null, // null = ainda não se sabe; false = a coluna não existe
+  _semColunaServidorId(error) {
+    return !!(error && (error.code === 'PGRST204' || error.code === '42703') && /servidor_id/.test(error.message || ''));
+  },
+  async _gravarFerias(f, executar) {
+    const row = linhaFerias(f);
+    if (this._feriasComId === false) delete row.servidor_id;
+    let r = await executar(row);
+    if (r.error && 'servidor_id' in row && this._semColunaServidorId(r.error)) {
+      this._feriasComId = false;
+      delete row.servidor_id;
+      r = await executar(row);
+    }
+    return r;
+  },
   async getFerias() {
     if (!this._online) return null;
     const { data, error } = await supabaseClient.from('ferias_abonadas').select('*').order('data_inicio', { ascending: false });
     if (error) { console.warn('DB.getFerias:', error.message); return null; }
+    if (data && data.length) this._feriasComId = 'servidor_id' in data[0];
     return data || [];
   },
   async insertFerias(f) {
     if (!this._online) return { ok: false, error: SEM_CONEXAO };
-    const { data, error } = await supabaseClient.from('ferias_abonadas').insert(linhaFerias(f)).select('id').single();
+    const { data, error } = await this._gravarFerias(f, row => supabaseClient.from('ferias_abonadas').insert(row).select('id').single());
     return error ? { ok: false, error } : { ok: true, id: data.id };
   },
   async updateFerias(id, f) {
     if (!this._online) return { ok: false, error: SEM_CONEXAO };
-    const { data, error } = await supabaseClient.from('ferias_abonadas').update(linhaFerias(f)).eq('id', id).select('id');
+    const { data, error } = await this._gravarFerias(f, row => supabaseClient.from('ferias_abonadas').update(row).eq('id', id).select('id'));
     if (error) return { ok: false, error };
     return (data && data.length) ? { ok: true } : { ok: false, error: { message: 'registro não encontrado ou sem permissão' } };
   },
@@ -5746,7 +5798,7 @@ async function saveServidor() {
       if (!atual || atual.id == null) { showToast('Registro não encontrado. Recarregue a página e tente de novo.', 'error'); return; }
       const r = await DB.updateServidor(atual.id, servidor);
       if (!r.ok) { showToast('Não foi possível salvar: ' + errMsg(r.error), 'error'); return; }
-      if (atual.nome !== servidor.nome) await DB.renomearServidorEmFerias(atual.nome, servidor.nome);
+      if (atual.nome !== servidor.nome) await DB.renomearServidorEmFerias(atual.id, atual.nome, servidor.nome);
       servidores[editingIndex] = { ...atual, ...servidor };
       showToast('Servidor atualizado com sucesso!', 'success');
     }
@@ -7012,21 +7064,50 @@ const FERIAS_KEY = 'sgc_ferias';
 const TIPO_FERIAS_LABEL = { ferias: 'Férias', abonada: 'Abonada', falta: 'Falta' };
 const STATUS_FERIAS_LABEL = { aprovado: 'Aprovado', pendente: 'Pendente', rejeitado: 'Rejeitado' };
 
-// Conversão entre o formato da tela e as colunas da tabela ferias_abonadas
+// Opção do select que mantém o servidor gravado no registro (excluído ou sem vínculo)
+const FERIAS_MANTER_SERVIDOR = 'registro';
+
+// Conversão entre o formato da tela e as colunas da tabela ferias_abonadas.
+// servidorId é o vínculo; servidorNome é a cópia do nome gravada no registro;
+// servidor é o nome exibido (o atual do cadastro, ou o gravado se não houver vínculo).
 function linhaFerias(f) {
   return {
-    servidor_nome: f.servidor, tipo: f.tipo, data_inicio: f.dataInicio,
+    servidor_id: f.servidorId != null ? f.servidorId : null, servidor_nome: f.servidorNome,
+    tipo: f.tipo, data_inicio: f.dataInicio,
     data_fim: f.dataFim || f.dataInicio, dias: f.dias || 1, status: f.status,
     observacao: f.obs || '', local: f.local || '', criado_por: f.criadoPor || ''
   };
 }
 function feriasDaLinha(row) {
   return {
-    id: row.id, servidor: row.servidor_nome, tipo: row.tipo,
+    id: row.id, servidorId: row.servidor_id != null ? Number(row.servidor_id) : null,
+    servidorNome: row.servidor_nome, tipo: row.tipo,
     dataInicio: row.data_inicio, dataFim: row.data_fim || row.data_inicio,
     dias: row.dias || 1, status: row.status, obs: row.observacao || '',
     local: row.local || '', criadoPor: row.criado_por || '', criadoEm: row.created_at
   };
+}
+
+function servidorPorId(id) {
+  if (id == null || id === '') return null;
+  return servidores.find(s => s.id != null && Number(s.id) === Number(id)) || null;
+}
+
+// Exibe o nome atual do servidor vinculado; sem vínculo, o nome gravado no registro
+function atualizarNomesFerias() {
+  feriasData.forEach(f => {
+    if (f.servidorNome == null) f.servidorNome = f.servidor || ''; // cópia local de versão anterior
+    if (f.servidorId === undefined) f.servidorId = null;
+    const s = servidorPorId(f.servidorId);
+    f.servidor = s ? s.nome : f.servidorNome;
+  });
+}
+
+// Mesmo servidor: pelo vínculo; sem vínculo (ou antes da migração), pelo nome gravado
+function mesmoServidorFerias(a, b) {
+  if (a.servidorId != null && b.servidorId != null) return a.servidorId === b.servidorId;
+  if (DB._feriasComId === true && (a.servidorId != null || b.servidorId != null)) return false;
+  return a.servidorNome === b.servidorNome;
 }
 
 // --- Persistência (registro a registro; antes apagava e regravava a tabela inteira) ---
@@ -7036,9 +7117,10 @@ async function loadFerias() {
   if (nuvem) {
     feriasData = nuvem.map(feriasDaLinha);
     try { localStorage.setItem(FERIAS_KEY, JSON.stringify(feriasData)); } catch (e) {}
-    return;
+  } else {
+    try { feriasData = JSON.parse(localStorage.getItem(FERIAS_KEY)) || []; } catch (e) { feriasData = []; }
   }
-  try { feriasData = JSON.parse(localStorage.getItem(FERIAS_KEY)) || []; } catch (e) { feriasData = []; }
+  atualizarNomesFerias();
 }
 
 // --- Renderização ---
@@ -7182,13 +7264,20 @@ function openModalFerias(id) {
   if (id) {
     const f = feriasData.find(x => x.id === id);
     if (!f) return;
-    // Servidor renomeado/excluído: mantém o nome gravado no registro
-    if (![...sel.options].some(o => o.value === f.servidor)) {
+    // Sem vínculo (registro anterior à migração ou servidor substituído na importação):
+    // procura pelo nome gravado, se ele identificar um único servidor
+    const peloNome = f.servidorId == null ? servidores.filter(s => s.id != null && s.nome === f.servidorNome) : [];
+    const serv = servidorPorId(f.servidorId) || (peloNome.length === 1 ? peloNome[0] : null);
+    if (serv) {
+      sel.value = String(serv.id);
+    } else {
+      // Servidor excluído ou nome repetido: mantém o que está gravado até alguém escolher
       const opt = document.createElement('option');
-      opt.value = f.servidor; opt.textContent = f.servidor + ' (não cadastrado)';
+      opt.value = FERIAS_MANTER_SERVIDOR;
+      opt.textContent = f.servidorNome + (f.servidorId != null ? '' : peloNome.length > 1 ? ' (nome repetido: escolha o servidor)' : ' (não cadastrado)');
       sel.appendChild(opt);
+      sel.value = FERIAS_MANTER_SERVIDOR;
     }
-    sel.value = f.servidor;
     document.getElementById('fTipo').value = f.tipo;
     document.getElementById('fDataInicio').value = f.dataInicio;
     document.getElementById('fDataFim').value = f.dataFim || '';
@@ -7240,9 +7329,13 @@ function calcFeriasDias() {
 function populateFeriasServidorSelect() {
   const sel = document.getElementById('fServidor');
   if (!sel) return;
-  const nomes = [...servidores].sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  const lista = servidores.filter(s => s.id != null).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  // Nomes repetidos ganham a matrícula para diferenciar
+  const cont = {};
+  lista.forEach(s => { const k = normTxt(s.nome).trim(); cont[k] = (cont[k] || 0) + 1; });
   sel.innerHTML = '<option value="">Selecione...</option>' +
-    nomes.map(s => '<option value="' + esc(s.nome) + '">' + esc(s.nome) + ' (' + esc(s.local || 'Sem local') + ')</option>').join('');
+    lista.map(s => '<option value="' + Number(s.id) + '">' + esc(s.nome) + ' (' + esc(s.local || 'Sem local') + ')' +
+      (cont[normTxt(s.nome).trim()] > 1 ? ' – mat. ' + esc(s.matricula || '---') : '') + '</option>').join('');
 }
 
 function populateFeriasLocalFilter() {
@@ -7258,21 +7351,33 @@ function populateFeriasLocalFilter() {
 
 async function salvarFerias() {
   if (!requireAdmin('registrar férias')) return;
-  const servidor = document.getElementById('fServidor').value;
+  const escolha = document.getElementById('fServidor').value;
   const tipo = document.getElementById('fTipo').value;
   const dataInicio = document.getElementById('fDataInicio').value;
   const dataFim = document.getElementById('fDataFim').value;
   const status = document.getElementById('fStatus').value;
   const obs = document.getElementById('fObs').value.trim().slice(0, 500);
 
-  if (!servidor || !dataInicio) { showToast('Preencha servidor e data.', 'error'); return; }
+  if (!escolha || !dataInicio) { showToast('Preencha servidor e data.', 'error'); return; }
   if (tipo === 'ferias' && !dataFim) { showToast('Informe a data fim das férias.', 'error'); return; }
   const fim = tipo === 'ferias' ? dataFim : dataInicio;
   if (fim < dataInicio) { showToast('A data fim não pode ser anterior à data início.', 'error'); return; }
 
+  const editando = editingFeriasId;
+  const atual = editando ? feriasData.find(f => f.id === editando) : null;
+  // Servidor escolhido (pelo id) ou o que já estava gravado no registro
+  let serv = null, servidorId = null, servidorNome = '';
+  if (escolha === FERIAS_MANTER_SERVIDOR && atual) {
+    servidorId = atual.servidorId; servidorNome = atual.servidorNome;
+  } else {
+    serv = servidorPorId(escolha);
+    if (!serv) { showToast('Servidor não encontrado. Recarregue a página e tente de novo.', 'error'); return; }
+    servidorId = Number(serv.id); servidorNome = serv.nome;
+  }
+
   // Sobreposição de férias do mesmo servidor
   if (tipo === 'ferias') {
-    const overlap = feriasData.find(f => f.servidor === servidor && f.tipo === 'ferias' && f.status !== 'rejeitado' &&
+    const overlap = feriasData.find(f => mesmoServidorFerias(f, { servidorId, servidorNome }) && f.tipo === 'ferias' && f.status !== 'rejeitado' &&
       f.id !== editingFeriasId && f.dataInicio <= fim && (f.dataFim || f.dataInicio) >= dataInicio);
     if (overlap) {
       showToast('Este servidor já tem férias entre ' + isoParaBR(overlap.dataInicio) + ' e ' + isoParaBR(overlap.dataFim) + '.', 'error');
@@ -7281,11 +7386,8 @@ async function salvarFerias() {
   }
   if (!exigirOnline()) return;
 
-  const serv = servidores.find(s => s.nome === servidor);
-  const editando = editingFeriasId;
-  const atual = editando ? feriasData.find(f => f.id === editando) : null;
   const registro = {
-    servidor, tipo, dataInicio, dataFim: fim, dias: diasEntreISO(dataInicio, fim), status, obs,
+    servidorId, servidorNome, tipo, dataInicio, dataFim: fim, dias: diasEntreISO(dataInicio, fim), status, obs,
     local: serv ? serv.local : (atual ? atual.local : ''),
     criadoPor: atual ? atual.criadoPor : (currentUser ? currentUser.nome : '')
   };

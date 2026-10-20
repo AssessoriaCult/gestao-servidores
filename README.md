@@ -11,6 +11,9 @@ Aplicação de página única (`index.html`) publicada pelo GitHub Pages, com da
 - A migração `supabase/migrations/20261016_seguranca_rls.sql` liga o RLS e cria as regras de
   acesso. **Ordem obrigatória:** primeiro publicar o `index.html` v3.1, depois rodar a migração
   no SQL Editor do Supabase (a versão anterior do site não funciona com o RLS ligado).
+- A migração `supabase/migrations/20261020_ferias_servidor_id.sql` vincula as férias ao servidor
+  pelo id (`ferias_abonadas.servidor_id`), em vez de só pelo nome. **Ordem:** primeiro publicar o
+  `index.html` que grava `servidor_id` (ele funciona com ou sem a coluna), depois rodar a migração.
 - Perfis: **Usuário** (consulta), **Administrador** (gerencia servidores, locais, férias e
   usuários) e **Master** (também importa/exporta dados e gerencia outros Masters).
 - Quem não tem perfil ativo na tabela `users` não entra, mesmo tendo conta de acesso.
