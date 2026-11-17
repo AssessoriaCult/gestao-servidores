@@ -44,6 +44,8 @@
 .badge-tipo.ferias { background:#dbeafe; color:#1e40af; }
 .badge-tipo.abonada { background:#fef3c7; color:#92400e; }
 .badge-tipo.falta { background:#fee2e2; color:#991b1b; }
+.badge-tipo.folga_tre { background:#ccfbf1; color:#115e59; }
+.ferias-dot.folga_tre, .ferias-bar.folga_tre { background:#14b8a6; }
 .badge-status { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
 .badge-status.aprovado { background:#d1fae5; color:#065f46; }
 .badge-status.pendente { background:#fef3c7; color:#92400e; }
@@ -3187,7 +3189,7 @@ thead th[data-col] { cursor: pointer; }
     <div class="page-header">
       <div class="page-header-text">
         <h1><i class="fas fa-umbrella-beach" style="color:var(--sky);margin-right:8px;"></i>Férias e Abonadas</h1>
-        <p>Controle de férias, abonadas e faltas dos servidores</p>
+        <p>Controle de férias, abonadas, faltas e folgas TRE dos servidores</p>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="openModalFerias()">
@@ -3205,6 +3207,7 @@ thead th[data-col] { cursor: pointer; }
       <div class="stat-card"><div class="stat-value" id="statFeriasProx">0</div><div class="stat-label">Próximas férias (30d)</div></div>
       <div class="stat-card"><div class="stat-value" id="statAbonadasMes">0</div><div class="stat-label">Abonadas no mês</div></div>
       <div class="stat-card"><div class="stat-value" id="statFaltasMes">0</div><div class="stat-label">Faltas no mês</div></div>
+      <div class="stat-card"><div class="stat-value" id="statFolgasTreMes">0</div><div class="stat-label">Folgas TRE no mês</div></div>
     </div>
 
     <!-- Filtros -->
@@ -3216,6 +3219,7 @@ thead th[data-col] { cursor: pointer; }
             <option value="ferias">Férias</option>
             <option value="abonada">Abonada</option>
             <option value="falta">Falta justificada</option>
+            <option value="folga_tre">Folga TRE</option>
           </select>
           <select class="form-input" id="fFiltroStatus" onchange="renderFeriasTable()" style="max-width:160px;" aria-label="Filtrar por status">
             <option value="">Todos os status</option>
@@ -3252,6 +3256,7 @@ thead th[data-col] { cursor: pointer; }
               <span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#3b82f6;"></span>Férias</span>
               <span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#f59e0b;"></span>Abonada</span>
               <span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#ef4444;"></span>Falta</span>
+              <span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#14b8a6;"></span>Folga TRE</span>
             </div>
           </div>
           <div id="feriasCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;"></div>
@@ -7061,8 +7066,31 @@ let editingFeriasId = null;
 let feriasCalMonth = new Date().getMonth();
 let feriasCalYear = new Date().getFullYear();
 const FERIAS_KEY = 'sgc_ferias';
-const TIPO_FERIAS_LABEL = { ferias: 'Férias', abonada: 'Abonada', falta: 'Falta' };
+const TIPO_FERIAS_LABEL = { ferias: 'Férias', abonada: 'Abonada', falta: 'Falta', folga_tre: 'Folga TRE' };
 const STATUS_FERIAS_LABEL = { aprovado: 'Aprovado', pendente: 'Pendente', rejeitado: 'Rejeitado' };
+
+// Tipos lançados como período (início e fim) num registro só
+const TIPOS_COM_PERIODO = ['ferias', 'folga_tre'];
+function temPeriodo(tipo) { return TIPOS_COM_PERIODO.includes(tipo); }
+
+// Dias de segunda a sexta entre duas datas AAAA-MM-DD (inclusive)
+function diasUteisEntreISO(ini, fim) {
+  if (!ini || !fim || fim < ini) return 0;
+  const [y1, m1, d1] = ini.split('-').map(Number), [y2, m2, d2] = fim.split('-').map(Number);
+  const fimDt = new Date(y2, m2 - 1, d2);
+  let n = 0;
+  for (const dt = new Date(y1, m1 - 1, d1); dt <= fimDt; dt.setDate(dt.getDate() + 1)) {
+    const dia = dt.getDay();
+    if (dia !== 0 && dia !== 6) n++;
+  }
+  return n;
+}
+
+// Folga TRE conta dias úteis; férias contam dias corridos; os demais tipos são de 1 dia
+function diasDoRegistro(tipo, ini, fim) {
+  if (tipo === 'folga_tre') return diasUteisEntreISO(ini, fim);
+  return diasEntreISO(ini, fim);
+}
 
 // Opção do select que mantém o servidor gravado no registro (excluído ou sem vínculo)
 const FERIAS_MANTER_SERVIDOR = 'registro';
@@ -7143,11 +7171,15 @@ function renderFeriasStats() {
   const proxFerias = feriasData.filter(f => f.tipo === 'ferias' && f.status === 'aprovado' && f.dataInicio > hoje && f.dataInicio <= prox30).length;
   const abonadasMes = feriasData.filter(f => f.tipo === 'abonada' && valido(f) && (f.dataInicio || '').slice(0, 7) === mesAtual).length;
   const faltasMes = feriasData.filter(f => f.tipo === 'falta' && valido(f) && (f.dataInicio || '').slice(0, 7) === mesAtual).length;
+  // Folga TRE: registros com algum dia dentro do mês atual
+  const inicioMes = mesAtual + '-01', fimMes = mesAtual + '-31';
+  const folgasTreMes = feriasData.filter(f => f.tipo === 'folga_tre' && valido(f) && f.dataInicio <= fimMes && (f.dataFim || f.dataInicio) >= inicioMes).length;
 
   document.getElementById('statFeriasHoje').textContent = emFeriasHoje;
   document.getElementById('statFeriasProx').textContent = proxFerias;
   document.getElementById('statAbonadasMes').textContent = abonadasMes;
   document.getElementById('statFaltasMes').textContent = faltasMes;
+  document.getElementById('statFolgasTreMes').textContent = folgasTreMes;
 }
 
 // Registros conforme os filtros da tela (usado na tabela e no PDF)
@@ -7186,7 +7218,7 @@ function renderFeriasTable() {
       '<td><b>' + nomeEsc + '</b>' + (f.obs ? '<div style="font-size:11px;color:var(--gray-400);">' + esc(f.obs) + '</div>' : '') + '</td>' +
       '<td><span class="badge-tipo ' + tipoCls + '">' + esc(TIPO_FERIAS_LABEL[f.tipo] || f.tipo) + '</span></td>' +
       '<td>' + isoParaBR(f.dataInicio) + '</td>' +
-      '<td>' + (f.tipo === 'ferias' ? isoParaBR(f.dataFim || f.dataInicio) : '-') + '</td>' +
+      '<td>' + (temPeriodo(f.tipo) ? isoParaBR(f.dataFim || f.dataInicio) : '-') + '</td>' +
       '<td style="text-align:center;font-weight:600;">' + (Number(f.dias) || 1) + '</td>' +
       '<td><span class="badge-status ' + statusCls + '">' + esc(STATUS_FERIAS_LABEL[f.status] || f.status) + '</span></td>' +
       '<td>' + esc(f.local || '-') + '</td>' +
@@ -7304,9 +7336,11 @@ function closeModalFerias() {
 
 function toggleFeriasDates() {
   const tipo = document.getElementById('fTipo').value;
-  const showRange = tipo === 'ferias';
+  const showRange = temPeriodo(tipo);
   document.getElementById('fDataFimGroup').style.display = showRange ? '' : 'none';
   document.getElementById('fDiasGroup').style.display = showRange ? '' : 'none';
+  document.getElementById('fTipoAjuda').style.display = tipo === 'folga_tre' ? 'block' : 'none';
+  document.getElementById('fDiasLabel').textContent = tipo === 'folga_tre' ? 'Dias úteis' : 'Dias';
   if (!showRange) {
     document.getElementById('fDataFim').value = '';
     document.getElementById('fDias').value = '1';
@@ -7314,14 +7348,16 @@ function toggleFeriasDates() {
 }
 
 function calcFeriasDias() {
+  const tipo = document.getElementById('fTipo').value;
   const ini = document.getElementById('fDataInicio').value;
   const fim = document.getElementById('fDataFim').value;
   const campo = document.getElementById('fDias');
+  if (!temPeriodo(tipo)) return;
   if (ini && fim) {
-    const diff = diasEntreISO(ini, fim);
+    const diff = fim < ini ? 0 : diasDoRegistro(tipo, ini, fim);
     campo.value = diff > 0 ? diff : '';
     campo.style.color = diff > 0 ? '' : 'var(--danger)';
-  } else if (document.getElementById('fTipo').value === 'ferias') {
+  } else {
     campo.value = '';
   }
 }
@@ -7359,9 +7395,14 @@ async function salvarFerias() {
   const obs = document.getElementById('fObs').value.trim().slice(0, 500);
 
   if (!escolha || !dataInicio) { showToast('Preencha servidor e data.', 'error'); return; }
-  if (tipo === 'ferias' && !dataFim) { showToast('Informe a data fim das férias.', 'error'); return; }
-  const fim = tipo === 'ferias' ? dataFim : dataInicio;
+  if (temPeriodo(tipo) && !dataFim) {
+    showToast(tipo === 'folga_tre' ? 'Informe a data fim da folga TRE.' : 'Informe a data fim das férias.', 'error');
+    return;
+  }
+  const fim = temPeriodo(tipo) ? dataFim : dataInicio;
   if (fim < dataInicio) { showToast('A data fim não pode ser anterior à data início.', 'error'); return; }
+  const dias = diasDoRegistro(tipo, dataInicio, fim);
+  if (dias < 1) { showToast('O período escolhido só tem sábado e domingo. Confira as datas.', 'error'); return; }
 
   const editando = editingFeriasId;
   const atual = editando ? feriasData.find(f => f.id === editando) : null;
@@ -7375,19 +7416,20 @@ async function salvarFerias() {
     servidorId = Number(serv.id); servidorNome = serv.nome;
   }
 
-  // Sobreposição de férias do mesmo servidor
-  if (tipo === 'ferias') {
-    const overlap = feriasData.find(f => mesmoServidorFerias(f, { servidorId, servidorNome }) && f.tipo === 'ferias' && f.status !== 'rejeitado' &&
+  // Sobreposição entre períodos (férias e folga TRE) do mesmo servidor
+  if (temPeriodo(tipo)) {
+    const overlap = feriasData.find(f => mesmoServidorFerias(f, { servidorId, servidorNome }) && temPeriodo(f.tipo) && f.status !== 'rejeitado' &&
       f.id !== editingFeriasId && f.dataInicio <= fim && (f.dataFim || f.dataInicio) >= dataInicio);
     if (overlap) {
-      showToast('Este servidor já tem férias entre ' + isoParaBR(overlap.dataInicio) + ' e ' + isoParaBR(overlap.dataFim) + '.', 'error');
+      const rotulo = overlap.tipo === 'folga_tre' ? 'folga TRE' : 'férias';
+      showToast('Este servidor já tem ' + rotulo + ' entre ' + isoParaBR(overlap.dataInicio) + ' e ' + isoParaBR(overlap.dataFim) + '.', 'error');
       return;
     }
   }
   if (!exigirOnline()) return;
 
   const registro = {
-    servidorId, servidorNome, tipo, dataInicio, dataFim: fim, dias: diasEntreISO(dataInicio, fim), status, obs,
+    servidorId, servidorNome, tipo, dataInicio, dataFim: fim, dias, status, obs,
     local: serv ? serv.local : (atual ? atual.local : ''),
     criadoPor: atual ? atual.criadoPor : (currentUser ? currentUser.nome : '')
   };
@@ -7432,7 +7474,7 @@ function exportFeriasPDF() {
   const rows = lista.map(f => [
     f.servidor, TIPO_FERIAS_LABEL[f.tipo] || f.tipo,
     isoParaBR(f.dataInicio),
-    f.tipo === 'ferias' ? isoParaBR(f.dataFim) : '-',
+    temPeriodo(f.tipo) ? isoParaBR(f.dataFim) : '-',
     String(f.dias || 1), STATUS_FERIAS_LABEL[f.status] || f.status, f.local || '-'
   ]);
 
@@ -7465,11 +7507,15 @@ function exportFeriasPDF() {
       </div>
       <div class="form-group">
         <label class="form-label">Tipo <span class="req">*</span></label>
-        <select class="form-input" id="fTipo" onchange="toggleFeriasDates()">
+        <select class="form-input" id="fTipo" onchange="toggleFeriasDates(); calcFeriasDias();">
           <option value="ferias">Férias</option>
           <option value="abonada">Abonada</option>
           <option value="falta">Falta justificada</option>
+          <option value="folga_tre">Folga TRE (eleitoral)</option>
         </select>
+        <span id="fTipoAjuda" style="display:none;font-size:11.5px;color:var(--gray-500);line-height:1.5;">
+          Lance o período inteiro num registro só (início e fim). Os dias contam só de segunda a sexta.
+        </span>
       </div>
       <div class="form-row" id="fDatasRow">
         <div class="form-group" style="flex:1;">
@@ -7480,8 +7526,8 @@ function exportFeriasPDF() {
           <label class="form-label">Data fim <span class="req">*</span></label>
           <input type="date" class="form-input" id="fDataFim" onchange="calcFeriasDias()">
         </div>
-        <div class="form-group" style="flex:0 0 70px;" id="fDiasGroup">
-          <label class="form-label">Dias</label>
+        <div class="form-group" style="flex:0 0 84px;" id="fDiasGroup">
+          <label class="form-label" id="fDiasLabel">Dias</label>
           <input type="text" class="form-input" id="fDias" readonly style="text-align:center;font-weight:700;background:#f1f5f9;">
         </div>
       </div>
