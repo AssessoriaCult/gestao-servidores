@@ -2386,6 +2386,15 @@ thead th[data-col] { cursor: pointer; }
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .stat-card { padding: 14px 16px; }
   #page-ferias .admin-card-body select, #page-ferias .admin-card-body input[type="search"] { flex: 1 1 140px; max-width: none !important; }
+  /* Tabela que vira cartões no celular (Minhas Férias e Folgas) */
+  .tabela-cartoes thead { display: none; }
+  .tabela-cartoes, .tabela-cartoes tbody { display: block; width: 100%; }
+  .tabela-cartoes tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; padding: 14px 16px; border-bottom: 1px solid var(--gray-100); }
+  .tabela-cartoes td { display: block; padding: 0 !important; border: none !important; text-align: left !important; max-width: none !important; }
+  .tabela-cartoes td[data-label]::before { content: attr(data-label); display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-400); margin-bottom: 2px; }
+  .tabela-cartoes td.cel-larga, .tabela-cartoes td[colspan] { grid-column: 1 / -1; }
+  .tabela-cartoes td[colspan] { text-align: center !important; }
+  .tabela-cartoes td.cel-vazia { display: none; }
 }
 @media (max-width: 480px) {
   .topbar-date { display: none; }
@@ -2664,6 +2673,10 @@ thead th[data-col] { cursor: pointer; }
     </button>
     <button class="nav-item admin-only" onclick="showPage('ferias', this)" style="display:none;">
       <i class="fas fa-umbrella-beach"></i> Férias e Abonadas
+      <span class="nav-badge" id="feriasPendBadge" style="display:none;" title="Pedidos aguardando aprovação">0</span>
+    </button>
+    <button class="nav-item" onclick="showPage('minhassolicitacoes', this)">
+      <i class="fas fa-calendar-plus"></i> Minhas Férias e Folgas
     </button>
 
     <div class="nav-label">Conta</div>
@@ -3013,6 +3026,53 @@ thead th[data-col] { cursor: pointer; }
     </div>
   </div>
 
+  <!-- ===== MINHAS FÉRIAS E FOLGAS (o servidor faz os próprios pedidos) ===== -->
+  <div class="page" id="page-minhassolicitacoes">
+    <div class="page-header">
+      <div class="page-header-text">
+        <h1><i class="fas fa-calendar-plus" style="color:var(--sky);margin-right:8px;"></i>Minhas Férias e Folgas</h1>
+        <p>Peça férias, folga TRE ou abonada. O pedido fica pendente até o administrador aprovar.</p>
+      </div>
+      <button class="btn btn-primary" id="btnNovaSolicitacao" onclick="openModalSolicitacao()" style="display:none;">
+        <i class="fas fa-plus"></i> Nova solicitação
+      </button>
+    </div>
+
+    <div class="admin-card" id="solicSemVinculo" style="display:none;margin-bottom:16px;">
+      <div class="admin-card-body" style="display:flex;gap:12px;align-items:flex-start;">
+        <i class="fas fa-link" style="color:var(--warning);margin-top:3px;"></i>
+        <p id="solicSemVinculoTexto" style="font-size:13px;color:var(--gray-600);line-height:1.6;">
+          Seu login ainda não está ligado ao seu cadastro de servidor. Peça ao administrador do sistema
+          para fazer o vínculo; depois disso você poderá enviar seus pedidos por aqui.
+        </p>
+      </div>
+    </div>
+
+    <div class="admin-card" id="solicLista" style="display:none;">
+      <div class="admin-card-header">
+        <i class="fas fa-list"></i> <span id="solicTitulo">Meus pedidos e registros</span>
+      </div>
+      <div class="admin-card-body" style="padding:0;">
+        <div style="overflow-x:auto;">
+          <table class="data-table tabela-cartoes" style="width:100%;">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Status</th>
+                <th>Início</th>
+                <th>Fim</th>
+                <th>Dias</th>
+                <th>Observação</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="solicTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-minhaconta">
     <div class="page-header">
       <div class="page-header-text">
@@ -3213,6 +3273,13 @@ thead th[data-col] { cursor: pointer; }
       <div class="stat-card"><div class="stat-value" id="statAbonadasMes">0</div><div class="stat-label">Abonadas no mês</div></div>
       <div class="stat-card"><div class="stat-value" id="statFaltasMes">0</div><div class="stat-label">Faltas no mês</div></div>
       <div class="stat-card"><div class="stat-value" id="statFolgasTreMes">0</div><div class="stat-label">Folgas TRE no mês</div></div>
+    </div>
+
+    <!-- Pedidos feitos pelos próprios servidores e ainda não analisados -->
+    <div id="feriasPendAviso" role="status" style="display:none;margin-bottom:16px;padding:12px 16px;border-radius:10px;background:#fff7e6;border:1px solid #f5c26b;font-size:13px;color:#7a4b00;align-items:center;gap:10px;flex-wrap:wrap;">
+      <i class="fas fa-hourglass-half" aria-hidden="true"></i>
+      <span id="feriasPendTexto"></span>
+      <button class="btn btn-secondary" style="font-size:12px;padding:5px 12px;margin-left:auto;" onclick="mostrarFeriasPendentes()">Ver pedidos pendentes</button>
     </div>
 
     <!-- Filtros -->
@@ -3546,6 +3613,13 @@ thead th[data-col] { cursor: pointer; }
             <option value="false">Inativo</option>
           </select>
         </div>
+        <div class="form-group" id="editUserServidorGrupo">
+          <label class="form-label" for="editUserServidor">Servidor vinculado</label>
+          <select class="form-input form-select" id="editUserServidor"></select>
+          <span style="font-size:10.5px;color:var(--gray-400);" id="editUserServidorAjuda">
+            Liga este login ao cadastro do servidor: assim a pessoa pode pedir as próprias férias e folgas.
+          </span>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -3728,7 +3802,9 @@ function mapUser(u) {
     id: u.id, nome: u.nome, email: u.email, role: u.role || 'user',
     active: u.active !== false,
     lgpdConsent: !!(u.lgpd_consent !== undefined ? u.lgpd_consent : u.lgpdConsent),
-    auth_uid: u.auth_uid || null
+    auth_uid: u.auth_uid || null,
+    // Cadastro de servidor ligado a este login (pedidos de férias e folgas)
+    servidorId: u.servidor_id != null ? Number(u.servidor_id) : (u.servidorId != null ? Number(u.servidorId) : null)
   };
 }
 
@@ -3793,7 +3869,11 @@ const DB = {
   // === USERS ===
   async getUsers() {
     if (this._online) {
-      const { data, error } = await supabaseClient.from('users').select('id,nome,email,role,active,lgpd_consent,auth_uid').order('id');
+      const campos = 'id,nome,email,role,active,lgpd_consent,auth_uid';
+      let { data, error } = await supabaseClient.from('users').select(campos + ',servidor_id').order('id');
+      // Antes da migração de 17/11/2026 a coluna servidor_id não existe
+      this._usersComServidor = !(error && /servidor_id/.test(error.message || ''));
+      if (!this._usersComServidor) ({ data, error } = await supabaseClient.from('users').select(campos).order('id'));
       if (!error && data) {
         const users = data.map(mapUser);
         this._setLocal('sgc_users', users);
@@ -3812,6 +3892,7 @@ const DB = {
     if (data.role !== undefined) m.role = data.role;
     if (data.active !== undefined) m.active = data.active;
     if (data.lgpdConsent !== undefined) m.lgpd_consent = data.lgpdConsent;
+    if (data.servidorId !== undefined) m.servidor_id = data.servidorId;
     const { data: rows, error } = await supabaseClient.from('users').update(m).eq('id', id).select('id');
     if (error) return { ok: false, error };
     if (!rows || rows.length === 0) return { ok: false, error: { message: 'sem permissão para alterar este usuário' } };
@@ -3894,12 +3975,42 @@ const DB = {
       }
       (data || []).forEach(r => novos.push(r));
     }
-    if (antigos.length) await this._transferirFerias(antigos, novos);
+    let vinculosPerdidos = 0;
+    if (antigos.length) {
+      await this._transferirFerias(antigos, novos);
+      vinculosPerdidos = await this._transferirVinculosLogin(antigos, novos);
+    }
     for (let i = 0; i < antigos.length; i += 200) {
       const { error } = await supabaseClient.from('servidores').delete().in('id', antigos.slice(i, i + 200).map(r => r.id));
       if (error) return { ok: false, error, parcial: true };
     }
-    return { ok: true, count: novos.length };
+    return { ok: true, count: novos.length, vinculosPerdidos };
+  },
+  // Na substituição, o login ligado a um servidor passa para o registro novo de
+  // mesmo nome (nome único nas duas listas). Devolve quantos logins ficaram sem vínculo.
+  async _transferirVinculosLogin(antigos, novos) {
+    const { data, error } = await supabaseClient.from('users').select('id,servidor_id');
+    if (error) return this._usersComServidor === false ? 0 : -1; // -1: não deu para conferir
+    if (!data || !data.length || !('servidor_id' in data[0])) return 0;
+    const unicos = lista => {
+      const cont = {}, mapa = {};
+      lista.forEach(s => { cont[s.nome] = (cont[s.nome] || 0) + 1; });
+      lista.forEach(s => { if (cont[s.nome] === 1) mapa[s.nome] = s.id; });
+      return mapa;
+    };
+    const novoPorNome = unicos(novos), antigoPorNome = unicos(antigos);
+    const antigoPorId = {};
+    antigos.forEach(s => { antigoPorId[s.id] = s; });
+    let perdidos = 0;
+    for (const u of data) {
+      const s = u.servidor_id != null ? antigoPorId[u.servidor_id] : null;
+      if (!s) continue;
+      const novoId = antigoPorNome[s.nome] === s.id ? novoPorNome[s.nome] : null;
+      if (novoId == null) { perdidos++; continue; }
+      const r = await supabaseClient.from('users').update({ servidor_id: novoId }).eq('id', u.id).select('id');
+      if (r.error || !r.data || !r.data.length) perdidos++;
+    }
+    return perdidos;
   },
   // Na substituição, as férias passam do registro antigo para o novo de mesmo
   // nome (só quando o nome é único nas duas listas); as demais ficam sem vínculo
@@ -4089,6 +4200,44 @@ const DB = {
     const { data, error } = await supabaseClient.from('ferias_abonadas').delete().eq('id', id).select('id');
     if (error) return { ok: false, error };
     return (data && data.length) ? { ok: true } : { ok: false, error: { message: 'registro não encontrado ou sem permissão' } };
+  },
+  // Pedidos e registros de um servidor (o próprio servidor só enxerga os seus)
+  async getFeriasDoServidor(servidorId) {
+    if (!this._online) return null;
+    const { data, error } = await supabaseClient.from('ferias_abonadas').select('*').eq('servidor_id', servidorId).order('data_inicio', { ascending: false });
+    if (error) { console.warn('DB.getFeriasDoServidor:', error.message); return null; }
+    return data || [];
+  },
+  async contarFeriasPendentes() {
+    if (!this._online) return null;
+    const { data, error } = await supabaseClient.from('ferias_abonadas').select('id').eq('status', 'pendente');
+    return error ? null : (data || []).length;
+  },
+  // Atualiza o vínculo login ↔ servidor de quem está logado (o Master pode ter mudado)
+  async atualizarMeuVinculo() {
+    if (!this._online || !currentUser || !currentUser.auth_uid) return;
+    const { data, error } = await supabaseClient.from('users').select('*').eq('auth_uid', currentUser.auth_uid).maybeSingle();
+    if (error || !data) return;
+    if (!('servidor_id' in data)) this._usersComServidor = false; // banco ainda sem a migração
+    currentUser.servidorId = data.servidor_id != null ? Number(data.servidor_id) : null;
+    this._setLocal('sgc_me', currentUser);
+  },
+  // Só decide pedido que ainda está pendente (outro administrador pode ter decidido antes)
+  async mudarStatusFerias(id, status, observacao) {
+    if (!this._online) return { ok: false, error: SEM_CONEXAO };
+    const mudanca = { status };
+    if (observacao !== undefined) mudanca.observacao = observacao;
+    const { data, error } = await supabaseClient.from('ferias_abonadas').update(mudanca).eq('id', id).eq('status', 'pendente').select('id');
+    if (error) return { ok: false, error };
+    return (data && data.length) ? { ok: true } : { ok: false, jaDecidido: true, error: { message: 'este pedido já foi analisado ou cancelado' } };
+  },
+  // O servidor desiste do próprio pedido, só enquanto ele estiver pendente
+  async cancelarPedidoFerias(id) {
+    if (!this._online) return { ok: false, error: SEM_CONEXAO };
+    const { data, error } = await supabaseClient.from('ferias_abonadas').delete()
+      .eq('id', id).eq('status', 'pendente').eq('solicitado_por', currentUser.auth_uid).select('id');
+    if (error) return { ok: false, error };
+    return (data && data.length) ? { ok: true } : { ok: false, jaDecidido: true, error: { message: 'pedido já analisado' } };
   }
 };
 
@@ -4315,6 +4464,7 @@ async function enterApp() {
   updatePendingBadge();
   updateImportNotice();
   showPage('dashboard', document.querySelector('.nav-item'));
+  if (canAdmin) atualizarBadgeFeriasPendentes();
 
   if (IS_RECOVERY_LINK && !recoveryModalShown) openRecoveryModal();
 }
@@ -4598,10 +4748,12 @@ async function renderAdminPanel() {
       <div class="admin-user-info">
         <div class="admin-user-name">${nomeEsc} ${roleBadgeHtml(uRole)}${inativo}</div>
         <div class="admin-user-email">${esc(u.email)}</div>
+        <div class="admin-user-email" style="margin-top:2px;">${vinculoServidorHtml(u)}</div>
       </div>
       <div class="admin-user-actions" style="gap:6px;flex-wrap:wrap;">
         ${isCurrentUser
-          ? '<span style="font-size:11px;color:var(--gray-400);background:var(--gray-50);padding:4px 10px;border-radius:6px;"><i class="fas fa-user-check" style="margin-right:4px;" aria-hidden="true"></i>Você</span>'
+          ? '<span style="font-size:11px;color:var(--gray-400);background:var(--gray-50);padding:4px 10px;border-radius:6px;"><i class="fas fa-user-check" style="margin-right:4px;" aria-hidden="true"></i>Você</span>' +
+            (currentIsMaster ? ` <button class="btn btn-edit btn-icon" onclick="openEditUser(${id})" title="Editar meu usuário" aria-label="Editar meu usuário"><i class="fas fa-pencil-alt" aria-hidden="true"></i></button>` : '')
           : `${roleBtn}
              ${currentIsMaster ? `<button class="btn btn-edit btn-icon" onclick="openEditUser(${id})" title="Editar usuário" aria-label="Editar ${nomeEsc}">
                <i class="fas fa-pencil-alt" aria-hidden="true"></i>
@@ -5091,6 +5243,8 @@ function importarDadosJSON(input) {
     showToast('Importando... não feche a página.', 'info');
     const r = await DB.importServidores(validos, modo);
     await recarregarServidores();
+    // Os vínculos login ↔ servidor mudaram no banco: recarrega a lista de usuários
+    if (modo === 'replace') await renderAdminPanel();
     if (!r.ok) {
       showToast(r.parcial
         ? 'Os novos registros foram gravados, mas parte dos antigos não pôde ser removida. Confira a lista.'
@@ -5106,7 +5260,13 @@ function importarDadosJSON(input) {
       targetEmail: '-',
       description: `${currentUser.nome} importou ${validos.length} servidores via JSON (modo: ${modo === 'replace' ? 'substituição' : 'adição'})`
     });
-    showToast(`${validos.length} servidores importados com sucesso!`, 'success');
+    if (r.vinculosPerdidos < 0) {
+      showToast(`${validos.length} servidores importados, mas não foi possível conferir os vínculos dos logins com os servidores. Confira a lista de usuários no Painel Admin.`, 'warning');
+    } else if (r.vinculosPerdidos) {
+      showToast(`${validos.length} servidores importados. ${r.vinculosPerdidos} login(s) ficaram sem vínculo com servidor (nome não encontrado ou repetido): refaça em Painel Admin > Editar usuário.`, 'warning');
+    } else {
+      showToast(`${validos.length} servidores importados com sucesso!`, 'success');
+    }
   };
   reader.readAsText(file);
 }
@@ -5375,7 +5535,7 @@ function showPage(pageId, btn) {
   document.getElementById('page-' + pageId).classList.add('active');
   if (!btn) btn = document.querySelector(`.nav-item[onclick*="'${pageId}'"]`);
   if (btn) { btn.classList.add('active'); btn.setAttribute('aria-current', 'page'); }
-  const titles = { dashboard:'Dashboard', servidores:'Servidores', locais:'Locais de Trabalho', calendario:'Calendário de Aniversários', ferias:'Férias e Abonadas', admin:'Administração', minhaconta:'Minha Conta' };
+  const titles = { dashboard:'Dashboard', servidores:'Servidores', locais:'Locais de Trabalho', calendario:'Calendário de Aniversários', ferias:'Férias e Abonadas', minhassolicitacoes:'Minhas Férias e Folgas', admin:'Administração', minhaconta:'Minha Conta' };
   document.getElementById('topbarTitle').textContent = titles[pageId] || pageId;
   document.title = (titles[pageId] || 'Gestão') + ' – Gestão de Servidores';
   closeSidebar();
@@ -5383,6 +5543,7 @@ function showPage(pageId, btn) {
   if (pageId === 'admin' && canAdmin) renderAdminPanel();
   if (pageId === 'locais' && canAdmin) renderLocaisTable();
   if (pageId === 'minhaconta') renderAccountPage();
+  if (pageId === 'minhassolicitacoes') renderMinhasSolicitacoes();
   if (pageId === 'ferias' && canAdmin) renderFeriasPage();
 }
 
@@ -5852,7 +6013,7 @@ document.getElementById('modalConfirm').addEventListener('click', function(e) { 
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape') return;
   closeModal(); closeConfirm(); closeFotoModal(); closeCracha(); closeRoleChangeModal(); closeChangePassword();
-  closeResetPasswordModal(); closeEditUser(); closeModalLocal(); closeModalFerias(); closeRequestAccess(); closeRecoveryModal();
+  closeResetPasswordModal(); closeEditUser(); closeModalLocal(); closeModalFerias(); closeModalSolicitacao(); closeRequestAccess(); closeRecoveryModal();
   const lgpd = document.getElementById('lgpdConsent');
   if (lgpd.dataset.modo === 'info') lgpd.classList.remove('open');
   if (document.getElementById('sidebar').classList.contains('open')) closeSidebar();
@@ -6797,13 +6958,42 @@ async function exportPagePDF(pageId, fileName) {
 // ===== EDITAR USUÁRIO (MASTER ONLY) =========================
 // ============================================================
 let editingUserId = null;
+let editUserVinculoAoAbrir = ''; // valor do campo "Servidor vinculado" ao abrir a janela
+
+// Texto do vínculo login ↔ servidor na lista de usuários
+function vinculoServidorHtml(u) {
+  if (DB._usersComServidor === false) return ''; // banco ainda sem o vínculo
+  const s =u.servidorId != null ? servidorPorId(u.servidorId) : null;
+  if (s) return '<i class="fas fa-link" style="margin-right:4px;color:var(--success);" aria-hidden="true"></i>Servidor: ' + esc(s.nome);
+  if (u.servidorId != null) return '<i class="fas fa-link" style="margin-right:4px;" aria-hidden="true"></i>Servidor nº ' + Number(u.servidorId);
+  return '<span style="color:var(--gray-300);"><i class="fas fa-link-slash" style="margin-right:4px;" aria-hidden="true"></i>Sem vínculo com servidor</span>';
+}
+
+// Sugere o servidor do login pelo e-mail ou pelo primeiro e último nome
+function sugerirServidorParaUsuario(user, ocupados) {
+  const livres = servidores.filter(s => s.id != null && !ocupados.has(Number(s.id)));
+  const email = normTxt(user.email);
+  const porEmail = livres.find(s => normTxt(s.email) === email && email);
+  if (porEmail) return { servidor: porEmail, motivo: 'e-mail igual' };
+  const partes = normTxt(user.nome).split(/\s+/).filter(Boolean);
+  if (partes.length >= 2) {
+    const primeiro = partes[0], ultimo = partes[partes.length - 1];
+    const candidatos = livres.filter(s => {
+      const p = normTxt(s.nome).split(/\s+/);
+      return p[0] === primeiro && p.includes(ultimo);
+    });
+    if (candidatos.length === 1) return { servidor: candidatos[0], motivo: 'nome parecido' };
+  }
+  return null;
+}
 
 function openEditUser(userId) {
   if (!isMaster()) {
     showToast('Apenas o Master pode editar usuários.', 'error');
     return;
   }
-  const user = DB.getUsersSync().find(u => u.id === userId);
+  const users = DB.getUsersSync();
+  const user = users.find(u => u.id === userId);
   if (!user) return;
 
   editingUserId = userId;
@@ -6811,6 +7001,45 @@ function openEditUser(userId) {
   document.getElementById('editUserEmail').value = user.email || '';
   document.getElementById('editUserRole').value = user.role || 'user';
   document.getElementById('editUserActive').value = user.active ? 'true' : 'false';
+
+  // Sem a coluna users.servidor_id no banco (migração não aplicada), o campo fica oculto
+  document.getElementById('editUserServidorGrupo').style.display = DB._usersComServidor === false ? 'none' : '';
+
+  // Servidores: os já ligados a outro login aparecem desativados
+  const donoDe = {};
+  users.forEach(u => { if (u.id !== userId && u.servidorId != null) donoDe[u.servidorId] = u.nome; });
+  const sel = document.getElementById('editUserServidor');
+  const lista = servidores.filter(s => s.id != null).sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+  sel.innerHTML = '<option value="">— Sem vínculo —</option>' + lista.map(s => {
+    const dono = donoDe[Number(s.id)];
+    return '<option value="' + Number(s.id) + '"' + (dono ? ' disabled' : '') + '>' + esc(s.nome) + ' (' + esc(s.local || 'Sem local') + ')' +
+      (dono ? ' — já ligado a ' + esc(dono) : '') + '</option>';
+  }).join('');
+  const ajuda = document.getElementById('editUserServidorAjuda');
+  ajuda.textContent = 'Liga este login ao cadastro do servidor: assim a pessoa pode pedir as próprias férias e folgas.';
+  sel.value = user.servidorId != null ? String(user.servidorId) : '';
+  if (sel.selectedIndex < 0) sel.value = ''; // vínculo com servidor que não está mais na lista
+  editUserVinculoAoAbrir = sel.value;
+  if (!sel.value) {
+    // Sugestão só aparece como botão: o vínculo dá acesso aos registros do servidor,
+    // então quem decide é o Master
+    const sug = sugerirServidorParaUsuario(user, new Set(Object.keys(donoDe).map(Number)));
+    if (sug) {
+      ajuda.textContent = 'Sugestão (' + sug.motivo + '): ' + sug.servidor.nome + '. ';
+      const usar = document.createElement('button');
+      usar.type = 'button';
+      usar.className = 'btn btn-secondary';
+      usar.style.cssText = 'font-size:11px;padding:3px 10px;margin-left:4px;';
+      usar.textContent = 'Usar sugestão';
+      usar.onclick = () => { sel.value = String(sug.servidor.id); sel.focus(); };
+      ajuda.appendChild(usar);
+    }
+  }
+
+  // Ninguém muda o próprio perfil nem se desativa (mesma regra da troca de permissão)
+  const editandoASiMesmo = currentUser && userId === currentUser.id;
+  document.getElementById('editUserRole').disabled = editandoASiMesmo;
+  document.getElementById('editUserActive').disabled = editandoASiMesmo;
   document.getElementById('modalEditUser').classList.add('open');
 }
 
@@ -6831,6 +7060,8 @@ async function saveEditUser() {
   const email = document.getElementById('editUserEmail').value.trim().toLowerCase();
   const role = document.getElementById('editUserRole').value;
   const active = document.getElementById('editUserActive').value === 'true';
+  const servidorEscolhido = document.getElementById('editUserServidor').value;
+  let servidorId = servidorEscolhido ? Number(servidorEscolhido) : null;
 
   if (!nome || !email) {
     showToast('Nome e email são obrigatórios.', 'error');
@@ -6844,6 +7075,8 @@ async function saveEditUser() {
   const users = DB.getUsersSync();
   const targetUser = users.find(u => u.id === editingUserId);
   if (!targetUser) return;
+  // Campo oculto (banco sem a coluna do vínculo): mantém o que está gravado
+  if (DB._usersComServidor === false) servidorId = targetUser.servidorId ?? null;
 
   // Não deixar o sistema sem Master ativo
   const outrosMastersAtivos = users.filter(u => u.role === 'master' && u.active && u.id !== editingUserId).length;
@@ -6855,6 +7088,10 @@ async function saveEditUser() {
     showToast('Você não pode desativar a si mesmo.', 'error');
     return;
   }
+  if (editingUserId === currentUser.id && role !== targetUser.role) {
+    showToast('Você não pode alterar sua própria permissão.', 'error');
+    return;
+  }
 
   const emailExists = users.find(u => u.id !== editingUserId && String(u.email).toLowerCase() === email);
   if (emailExists) {
@@ -6863,20 +7100,41 @@ async function saveEditUser() {
   }
   if (!exigirOnline()) return;
 
+  // Só conta como mudança o que o Master alterou no campo desde que abriu a janela
+  const mudouVinculo = DB._usersComServidor !== false && servidorEscolhido !== editUserVinculoAoAbrir;
+  const ligadoAOutro = mudouVinculo && servidorId != null && users.find(u => u.id !== editingUserId && u.servidorId === servidorId);
+  if (ligadoAOutro) {
+    showToast('Este servidor já está ligado ao login de ' + ligadoAOutro.nome + '.', 'error');
+    return;
+  }
+
   const oldRole = targetUser.role;
   const eraAtivo = targetUser.active;
+  const dados = { nome, email, role, active };
+  if (mudouVinculo) dados.servidorId = servidorId;
   let ok = false;
   await comBotaoOcupado(document.getElementById('btnSalvarEditUser'), async () => {
-    const r = await DB.updateUser(editingUserId, { nome, email, role, active });
-    if (!r.ok) { showToast('Não foi possível salvar: ' + errMsg(r.error), 'error'); return; }
+    const r = await DB.updateUser(editingUserId, dados);
+    if (!r.ok) {
+      const m = errMsg(r.error);
+      const cod = r.error && r.error.code;
+      showToast(/users_servidor_id_unico/.test(m) ? 'Este servidor já está ligado a outro login.'
+        : cod === '23505' && /email/i.test(m) ? 'Já existe outro usuário com este e-mail.'
+        : cod === '23503' && /servidor_id/.test(m) ? 'O servidor escolhido não existe mais. Recarregue a página e escolha de novo.'
+        : (cod === '42703' || cod === 'PGRST204') && /servidor_id/.test(m) ? 'O banco ainda não tem o vínculo de servidor (falta aplicar a migração).'
+        : 'Não foi possível salvar: ' + m, 'error');
+      return;
+    }
     ok = true;
+    const servNovo = servidorId != null ? servidorPorId(servidorId) : null;
+    const textoVinculo = mudouVinculo ? `, vínculo com servidor: ${servNovo ? servNovo.nome : 'removido'}` : '';
     await DB.addAuditEntry({
       type: oldRole !== role ? (role === 'user' || (oldRole === 'master') ? 'demote' : 'promote') : (eraAtivo !== active && !active ? 'remove' : 'add'),
       performedBy: currentUser.nome,
       performedByEmail: currentUser.email,
       targetUser: nome,
       targetEmail: email,
-      description: `${currentUser.nome} editou o usuário ${nome}: perfil ${getRoleLabel(oldRole)}→${getRoleLabel(role)}, status ${active ? 'ativo' : 'inativo'}`
+      description: `${currentUser.nome} editou o usuário ${nome}: perfil ${getRoleLabel(oldRole)}→${getRoleLabel(role)}, status ${active ? 'ativo' : 'inativo'}${textoVinculo}`
     });
   });
   if (!ok) return;
@@ -6888,7 +7146,7 @@ async function saveEditUser() {
     location.reload();
     return;
   }
-  if (editouASiMesmo) { currentUser.nome = nome; currentUser.email = email; DB._setLocal('sgc_me', currentUser); }
+  if (editouASiMesmo) { currentUser.nome = nome; currentUser.email = email; if (mudouVinculo) currentUser.servidorId = servidorId; DB._setLocal('sgc_me', currentUser); }
   renderAdminPanel();
   showToast(`Usuário ${nome} atualizado com sucesso!`, 'success');
 }
@@ -7110,7 +7368,9 @@ function feriasDaLinha(row) {
     servidorNome: row.servidor_nome, tipo: row.tipo,
     dataInicio: row.data_inicio, dataFim: row.data_fim || row.data_inicio,
     dias: row.dias || 1, status: row.status, obs: row.observacao || '',
-    local: row.local || '', criadoPor: row.criado_por || '', criadoEm: row.created_at
+    local: row.local || '', criadoPor: row.criado_por || '', criadoEm: row.created_at,
+    // Login que fez o pedido (vazio nos registros lançados antes de 17/11/2026)
+    solicitadoPor: row.solicitado_por || null
   };
 }
 
@@ -7157,6 +7417,85 @@ async function renderFeriasPage() {
   renderFeriasStats();
   renderFeriasTable();
   renderFeriasCal();
+  mostrarContagemPendentes(feriasData.filter(f => f.status === 'pendente').length);
+}
+
+// Badge do menu e aviso da tela de Férias com o número de pedidos pendentes
+function mostrarContagemPendentes(n) {
+  const badge = document.getElementById('feriasPendBadge');
+  if (badge) { badge.textContent = n; badge.style.display = n > 0 ? '' : 'none'; }
+  const aviso = document.getElementById('feriasPendAviso');
+  if (aviso) {
+    aviso.style.display = n > 0 ? 'flex' : 'none';
+    document.getElementById('feriasPendTexto').textContent = n === 1
+      ? '1 pedido aguardando aprovação.'
+      : n + ' pedidos aguardando aprovação.';
+  }
+}
+
+async function atualizarBadgeFeriasPendentes() {
+  if (!isAdminOrAbove()) return;
+  const n = await DB.contarFeriasPendentes();
+  if (n !== null) mostrarContagemPendentes(n);
+}
+
+function mostrarFeriasPendentes() {
+  ['fFiltroTipo', 'fFiltroLocal', 'fFiltroMes', 'fFiltroBusca'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('fFiltroStatus').value = 'pendente';
+  renderFeriasTable();
+  document.getElementById('feriasTbody').closest('.admin-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// O administrador aprova ou rejeita um pedido pendente
+async function decidirFerias(id, status, btn) {
+  if (!requireAdmin('analisar pedidos')) return;
+  const f = feriasData.find(x => x.id === id);
+  if (!f || f.status !== 'pendente') return;
+  const rotulo = TIPO_FERIAS_LABEL[f.tipo] || f.tipo;
+  const periodo = temPeriodo(f.tipo) && f.dataFim && f.dataFim !== f.dataInicio
+    ? isoParaBR(f.dataInicio) + ' a ' + isoParaBR(f.dataFim)
+    : isoParaBR(f.dataInicio);
+  let observacao;
+  if (status === 'aprovado') {
+    // Avisa se já houver outro registro aprovado do mesmo servidor nesse período
+    const choque = feriasData.find(o => o.id !== f.id && o.status === 'aprovado' && mesmoServidorFerias(o, f) &&
+      o.dataInicio <= (f.dataFim || f.dataInicio) && (o.dataFim || o.dataInicio) >= f.dataInicio);
+    const extra = choque ? '\n\nAtenção: ' + f.servidor + ' já tem ' + (TIPO_FERIAS_LABEL[choque.tipo] || choque.tipo) +
+      ' aprovada em ' + isoParaBR(choque.dataInicio) + (choque.dataFim && choque.dataFim !== choque.dataInicio ? ' a ' + isoParaBR(choque.dataFim) : '') + '.' : '';
+    if (!confirm('Aprovar o pedido de ' + rotulo + ' de ' + f.servidor + ' (' + periodo + ', ' + (Number(f.dias) || 1) + ' dia(s))?' + extra)) return;
+  } else {
+    const motivo = prompt('Rejeitar o pedido de ' + rotulo + ' de ' + f.servidor + ' (' + periodo + ').\n\nMotivo (opcional; o servidor verá esta observação):', '');
+    if (motivo === null) return;
+    const m = motivo.trim();
+    if (m) {
+      // O motivo sempre cabe inteiro: o que se encurta é a observação do pedido
+      if (m.length > 480 && !confirm('O motivo tem ' + m.length + ' caracteres e será guardado só até o 480º. Continuar?')) return;
+      const sufixo = 'Motivo da rejeição: ' + m.slice(0, 480);
+      const resto = 500 - sufixo.length - 3;
+      observacao = (f.obs && resto >= 10 ? (f.obs.length > resto ? f.obs.slice(0, resto - 1) + '…' : f.obs) + ' | ' : '') + sufixo;
+    }
+  }
+  if (!exigirOnline()) return;
+  await comBotaoOcupado(btn, async () => {
+    const r = await DB.mudarStatusFerias(id, status, observacao);
+    if (!r.ok) {
+      showToast(r.jaDecidido
+        ? 'Este pedido já foi analisado por outro administrador ou cancelado pelo servidor. A lista foi atualizada.'
+        : 'Não foi possível salvar: ' + errMsg(r.error), 'error');
+      await renderFeriasPage();
+      return;
+    }
+    await DB.addAuditEntry({
+      type: status === 'aprovado' ? 'approve' : 'reject',
+      performedBy: currentUser.nome,
+      performedByEmail: currentUser.email,
+      targetUser: f.servidor,
+      targetEmail: '',
+      description: `${currentUser.nome} ${status === 'aprovado' ? 'aprovou' : 'rejeitou'} o pedido de ${rotulo} de ${f.servidor} (${periodo})`
+    });
+    await renderFeriasPage();
+    showToast(status === 'aprovado' ? 'Pedido aprovado.' : 'Pedido rejeitado.', status === 'aprovado' ? 'success' : 'info');
+  });
 }
 
 function renderFeriasStats() {
@@ -7212,15 +7551,25 @@ function renderFeriasTable() {
     const nomeEsc = esc(f.servidor);
     const tipoCls = TIPO_FERIAS_LABEL[f.tipo] ? f.tipo : '';
     const statusCls = STATUS_FERIAS_LABEL[f.status] ? f.status : '';
-    return '<tr>' +
-      '<td><b>' + nomeEsc + '</b>' + (f.obs ? '<div style="font-size:11px;color:var(--gray-400);">' + esc(f.obs) + '</div>' : '') + '</td>' +
+    const pendente = f.status === 'pendente';
+    // Quem lançou o pedido e quando (aparece nos pendentes, para o administrador decidir)
+    const lancado = pendente && (f.criadoPor || f.criadoEm)
+      ? '<div style="font-size:10.5px;color:var(--gray-400);margin-top:2px;"><i class="fas fa-paper-plane" aria-hidden="true" style="margin-right:3px;"></i>Pedido' +
+        (f.criadoPor ? ' de ' + esc(f.criadoPor) : '') + (f.criadoEm ? ' em ' + esc(new Date(f.criadoEm).toLocaleDateString('pt-BR')) : '') + '</div>'
+      : '';
+    const decidir = pendente
+      ? '<button class="btn btn-success btn-icon" onclick="decidirFerias(' + id + ', \'aprovado\', this)" title="Aprovar" aria-label="Aprovar pedido de ' + nomeEsc + '"><i class="fas fa-check" aria-hidden="true"></i></button> ' +
+        '<button class="btn btn-danger-light btn-icon" onclick="decidirFerias(' + id + ', \'rejeitado\', this)" title="Rejeitar" aria-label="Rejeitar pedido de ' + nomeEsc + '"><i class="fas fa-times" aria-hidden="true"></i></button> '
+      : '';
+    return '<tr' + (pendente ? ' style="background:#fffbeb;"' : '') + '>' +
+      '<td><b>' + nomeEsc + '</b>' + (f.obs ? '<div style="font-size:11px;color:var(--gray-400);">' + esc(f.obs) + '</div>' : '') + lancado + '</td>' +
       '<td><span class="badge-tipo ' + tipoCls + '">' + esc(TIPO_FERIAS_LABEL[f.tipo] || f.tipo) + '</span></td>' +
       '<td>' + isoParaBR(f.dataInicio) + '</td>' +
       '<td>' + (temPeriodo(f.tipo) ? isoParaBR(f.dataFim || f.dataInicio) : '-') + '</td>' +
       '<td style="text-align:center;font-weight:600;">' + (Number(f.dias) || 1) + '</td>' +
       '<td><span class="badge-status ' + statusCls + '">' + esc(STATUS_FERIAS_LABEL[f.status] || f.status) + '</span></td>' +
       '<td>' + esc(f.local || '-') + '</td>' +
-      '<td style="white-space:nowrap;">' +
+      '<td style="white-space:nowrap;">' + decidir +
         '<button class="btn btn-edit btn-icon" onclick="editFerias(' + id + ')" title="Editar" aria-label="Editar registro de ' + nomeEsc + '"><i class="fas fa-pen" aria-hidden="true"></i></button> ' +
         '<button class="btn btn-delete btn-icon" onclick="deleteFerias(' + id + ')" title="Excluir" aria-label="Excluir registro de ' + nomeEsc + '"><i class="fas fa-trash" aria-hidden="true"></i></button>' +
       '</td>' +
@@ -7454,6 +7803,201 @@ async function deleteFerias(id) {
   showToast('Registro excluído.', 'success');
 }
 
+// ============================================================
+// ===== MINHAS FÉRIAS E FOLGAS (pedidos do próprio servidor) ==
+// ============================================================
+// O servidor só lê, cria (sempre "pendente") e cancela os próprios pedidos:
+// quem garante isso são as regras do banco (migração 20261117_solicitacoes_servidor).
+const TIPOS_SOLICITACAO = ['ferias', 'folga_tre', 'abonada'];
+let minhasSolicitacoes = [];
+let minhasSolicitacoesCarregadas = false;
+
+// O servidor só cancela o que ele mesmo pediu, enquanto estiver pendente
+function podeCancelarPedido(f) {
+  return f.status === 'pendente' && TIPOS_SOLICITACAO.includes(f.tipo) &&
+    !!f.solicitadoPor && !!currentUser && f.solicitadoPor === currentUser.auth_uid;
+}
+
+async function renderMinhasSolicitacoes() {
+  const semVinculo = document.getElementById('solicSemVinculo');
+  const card = document.getElementById('solicLista');
+  const btnNovo = document.getElementById('btnNovaSolicitacao');
+  const tbody = document.getElementById('solicTbody');
+
+  minhasSolicitacoesCarregadas = false;
+  await DB.atualizarMeuVinculo();
+  const sid = currentUser ? currentUser.servidorId : null;
+  if (sid == null) {
+    document.getElementById('solicSemVinculoTexto').textContent = DB._usersComServidor === false
+      ? 'Os pedidos de férias e folgas pelo próprio servidor ainda estão sendo ativados no sistema. Por enquanto, faça o pedido como de costume.'
+      : 'Seu login ainda não está ligado ao seu cadastro de servidor. Peça ao administrador do sistema para fazer o vínculo; depois disso você poderá enviar seus pedidos por aqui.';
+    semVinculo.style.display = '';
+    card.style.display = 'none';
+    btnNovo.style.display = 'none';
+    minhasSolicitacoes = [];
+    return;
+  }
+  semVinculo.style.display = 'none';
+  card.style.display = '';
+  btnNovo.style.display = '';
+  const serv = servidorPorId(sid);
+  document.getElementById('solicTitulo').textContent = 'Pedidos e registros de ' + (serv ? serv.nome : currentUser.nome);
+
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--gray-400);"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Carregando...</td></tr>';
+  const linhas = await DB.getFeriasDoServidor(sid);
+  if (linhas === null) {
+    minhasSolicitacoes = [];
+    btnNovo.style.display = 'none'; // sem a lista não dá para conferir dias já pedidos
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--danger);">Não foi possível carregar seus registros. Verifique a conexão e tente de novo.</td></tr>';
+    return;
+  }
+  minhasSolicitacoes = linhas.map(feriasDaLinha);
+  minhasSolicitacoesCarregadas = true;
+  if (!minhasSolicitacoes.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gray-400);"><i class="fas fa-calendar-plus" style="font-size:24px;margin-bottom:8px;display:block;" aria-hidden="true"></i>Nenhum pedido ainda. Use "Nova solicitação" para pedir férias, folga TRE ou abonada.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = minhasSolicitacoes.map(f => {
+    const id = Number(f.id);
+    const tipoCls = TIPO_FERIAS_LABEL[f.tipo] ? f.tipo : '';
+    const statusCls = STATUS_FERIAS_LABEL[f.status] ? f.status : '';
+    const rotulo = TIPO_FERIAS_LABEL[f.tipo] || f.tipo;
+    const acao = podeCancelarPedido(f)
+      ? '<td class="cel-larga" style="white-space:nowrap;"><button class="btn btn-danger-light" style="font-size:11.5px;padding:5px 10px;" onclick="cancelarSolicitacao(' + id + ', this)" aria-label="Cancelar o pedido de ' + esc(rotulo) + ' de ' + isoParaBR(f.dataInicio) + '"><i class="fas fa-ban" aria-hidden="true"></i> Cancelar pedido</button></td>'
+      : '<td class="cel-larga cel-vazia"><span style="font-size:11px;color:var(--gray-300);" aria-hidden="true">—</span></td>';
+    return '<tr>' +
+      '<td data-label="Tipo"><span class="badge-tipo ' + tipoCls + '">' + esc(rotulo) + '</span></td>' +
+      '<td data-label="Status"><span class="badge-status ' + statusCls + '">' + esc(STATUS_FERIAS_LABEL[f.status] || f.status) + '</span></td>' +
+      '<td data-label="Início">' + isoParaBR(f.dataInicio) + '</td>' +
+      '<td data-label="Fim">' + (temPeriodo(f.tipo) ? isoParaBR(f.dataFim || f.dataInicio) : '-') + '</td>' +
+      '<td data-label="' + (f.tipo === 'folga_tre' ? 'Dias úteis' : 'Dias') + '" style="text-align:center;font-weight:600;">' + (Number(f.dias) || 1) + '</td>' +
+      '<td data-label="Observação" class="cel-larga' + (f.obs ? '' : ' cel-vazia') + '" style="font-size:12px;color:var(--gray-500);max-width:280px;">' + esc(f.obs || '-') + '</td>' +
+      acao +
+    '</tr>';
+  }).join('');
+}
+
+function openModalSolicitacao() {
+  const sid = currentUser ? currentUser.servidorId : null;
+  if (sid == null) { showToast('Seu login ainda não está ligado ao seu cadastro de servidor. Fale com o administrador.', 'error'); return; }
+  const serv = servidorPorId(sid);
+  document.getElementById('solicServidorInfo').textContent = 'Servidor: ' + (serv ? serv.nome + (serv.local ? ' — ' + serv.local : '') : currentUser.nome);
+  document.getElementById('solTipo').value = 'ferias';
+  document.getElementById('solDataInicio').value = '';
+  document.getElementById('solDataFim').value = '';
+  document.getElementById('solDias').value = '';
+  document.getElementById('solObs').value = '';
+  toggleSolicitacaoDatas();
+  document.getElementById('modalSolicitacao').classList.add('open');
+}
+
+function closeModalSolicitacao() {
+  const m = document.getElementById('modalSolicitacao');
+  if (m) m.classList.remove('open');
+}
+
+function toggleSolicitacaoDatas() {
+  const tipo = document.getElementById('solTipo').value;
+  const periodo = temPeriodo(tipo);
+  document.getElementById('solDataFimGroup').style.display = periodo ? '' : 'none';
+  document.getElementById('solDiasGroup').style.display = periodo ? '' : 'none';
+  document.getElementById('solTipoAjuda').style.display = tipo === 'folga_tre' ? 'block' : 'none';
+  document.getElementById('solDiasLabel').textContent = tipo === 'folga_tre' ? 'Dias úteis' : 'Dias';
+  if (!periodo) {
+    document.getElementById('solDataFim').value = '';
+    document.getElementById('solDias').value = '1';
+  }
+}
+
+function calcSolicitacaoDias() {
+  const tipo = document.getElementById('solTipo').value;
+  if (!temPeriodo(tipo)) return;
+  const ini = document.getElementById('solDataInicio').value;
+  const fim = document.getElementById('solDataFim').value;
+  const campo = document.getElementById('solDias');
+  if (ini && fim) {
+    const n = fim < ini ? 0 : diasDoRegistro(tipo, ini, fim);
+    campo.value = n > 0 ? n : '';
+    campo.style.color = n > 0 ? '' : 'var(--danger)';
+  } else {
+    campo.value = '';
+  }
+}
+
+async function salvarSolicitacao() {
+  const sid = currentUser ? currentUser.servidorId : null;
+  if (sid == null) { showToast('Seu login ainda não está ligado ao seu cadastro de servidor. Fale com o administrador.', 'error'); return; }
+  const tipo = document.getElementById('solTipo').value;
+  const dataInicio = document.getElementById('solDataInicio').value;
+  const dataFimCampo = document.getElementById('solDataFim').value;
+  const obs = document.getElementById('solObs').value.trim().slice(0, 500);
+
+  if (!minhasSolicitacoesCarregadas) { showToast('Seus registros não carregaram. Atualize a página antes de enviar o pedido.', 'error'); return; }
+  if (!TIPOS_SOLICITACAO.includes(tipo)) { showToast('Escolha o tipo do pedido.', 'error'); return; }
+  if (!dataInicio) { showToast('Informe a data de início.', 'error'); document.getElementById('solDataInicio').focus(); return; }
+  if (temPeriodo(tipo) && !dataFimCampo) {
+    showToast(tipo === 'folga_tre' ? 'Informe a data fim da folga TRE.' : 'Informe a data fim das férias.', 'error');
+    document.getElementById('solDataFim').focus();
+    return;
+  }
+  const dataFim = temPeriodo(tipo) ? dataFimCampo : dataInicio;
+  if (dataFim < dataInicio) { showToast('A data fim não pode ser anterior à data início.', 'error'); return; }
+  const dias = diasDoRegistro(tipo, dataInicio, dataFim);
+  if (dias < 1) { showToast('O período escolhido só tem sábado e domingo. Confira as datas.', 'error'); return; }
+
+  // Não deixa pedir duas vezes o mesmo dia (pedidos rejeitados não contam)
+  const choque = minhasSolicitacoes.find(f => f.status !== 'rejeitado' &&
+    f.dataInicio <= dataFim && (f.dataFim || f.dataInicio) >= dataInicio);
+  if (choque) {
+    showToast('Você já tem ' + (TIPO_FERIAS_LABEL[choque.tipo] || choque.tipo) + ' (' + (STATUS_FERIAS_LABEL[choque.status] || choque.status).toLowerCase() + ') em ' +
+      isoParaBR(choque.dataInicio) + (choque.dataFim && choque.dataFim !== choque.dataInicio ? ' a ' + isoParaBR(choque.dataFim) : '') + '.', 'error');
+    return;
+  }
+  if (dataInicio < hojeISO() && !confirm('A data de início (' + isoParaBR(dataInicio) + ') já passou. Enviar o pedido mesmo assim?')) return;
+  if (!exigirOnline()) return;
+
+  const serv = servidorPorId(sid);
+  const registro = {
+    servidorId: sid, servidorNome: serv ? serv.nome : currentUser.nome,
+    tipo, dataInicio, dataFim, dias, status: 'pendente', obs,
+    local: serv ? (serv.local || '') : '', criadoPor: currentUser.nome
+  };
+  await comBotaoOcupado(document.getElementById('btnEnviarPedidoFerias'), async () => {
+    const r = await DB.insertFerias(registro);
+    if (!r.ok) {
+      const m = errMsg(r.error);
+      showToast(/row-level security|policy|permission/i.test(m)
+        ? 'O sistema ainda não aceita pedidos pelo servidor. Avise o administrador.'
+        : 'Não foi possível enviar: ' + m, 'error');
+      return;
+    }
+    closeModalSolicitacao();
+    await renderMinhasSolicitacoes();
+    showToast('Pedido enviado! Ele fica pendente até o administrador aprovar.', 'success');
+  });
+}
+
+async function cancelarSolicitacao(id, btn) {
+  const f = minhasSolicitacoes.find(x => x.id === id);
+  if (!f || !podeCancelarPedido(f)) return;
+  const rotulo = TIPO_FERIAS_LABEL[f.tipo] || f.tipo;
+  const periodo = isoParaBR(f.dataInicio) + (temPeriodo(f.tipo) && f.dataFim !== f.dataInicio ? ' a ' + isoParaBR(f.dataFim) : '');
+  if (!confirm('Desistir do pedido de ' + rotulo + ' (' + periodo + ')?\n\nClique em OK para cancelar o pedido.')) return;
+  if (!exigirOnline()) return;
+  await comBotaoOcupado(btn, async () => {
+    const r = await DB.cancelarPedidoFerias(id);
+    if (!r.ok) {
+      showToast(r.jaDecidido
+        ? 'Este pedido já foi analisado pelo administrador e não pode mais ser cancelado.'
+        : 'Não foi possível cancelar: ' + errMsg(r.error), 'error');
+      await renderMinhasSolicitacoes();
+      return;
+    }
+    await renderMinhasSolicitacoes();
+    showToast('Pedido cancelado.', 'success');
+  });
+}
+
 // --- PDF ---
 function exportFeriasPDF() {
   const lista = getFeriasFiltradas();
@@ -7545,6 +8089,55 @@ function exportFeriasPDF() {
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModalFerias()">Cancelar</button>
       <button class="btn btn-primary" id="btnSalvarFerias" onclick="salvarFerias()"><i class="fas fa-save"></i> Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL NOVA SOLICITAÇÃO (o próprio servidor) ===== -->
+<div class="modal-overlay" id="modalSolicitacao">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-calendar-plus"></i><span>Nova solicitação</span></div>
+      <button class="modal-close" onclick="closeModalSolicitacao()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p id="solicServidorInfo" style="font-size:12.5px;color:var(--gray-500);margin-bottom:14px;"></p>
+      <div class="form-group">
+        <label class="form-label">Tipo <span class="req">*</span></label>
+        <select class="form-input" id="solTipo" onchange="toggleSolicitacaoDatas(); calcSolicitacaoDias();">
+          <option value="ferias">Férias</option>
+          <option value="folga_tre">Folga TRE (eleitoral)</option>
+          <option value="abonada">Abonada</option>
+        </select>
+        <span id="solTipoAjuda" style="display:none;font-size:11.5px;color:var(--gray-500);line-height:1.5;">
+          Peça o período inteiro de uma vez (início e fim). Os dias contam só de segunda a sexta.
+        </span>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Data início <span class="req">*</span></label>
+          <input type="date" class="form-input" id="solDataInicio" onchange="calcSolicitacaoDias()">
+        </div>
+        <div class="form-group" style="flex:1;" id="solDataFimGroup">
+          <label class="form-label">Data fim <span class="req">*</span></label>
+          <input type="date" class="form-input" id="solDataFim" onchange="calcSolicitacaoDias()">
+        </div>
+        <div class="form-group" style="flex:0 0 84px;" id="solDiasGroup">
+          <label class="form-label" id="solDiasLabel">Dias</label>
+          <input type="text" class="form-input" id="solDias" readonly style="text-align:center;font-weight:700;background:#f1f5f9;">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Observação</label>
+        <textarea class="form-input" id="solObs" rows="3" maxlength="500" placeholder="Ex.: nº do protocolo no 1Doc, período aquisitivo das férias, motivo da abonada..."></textarea>
+      </div>
+      <p style="font-size:11.5px;color:var(--gray-400);line-height:1.5;">
+        O pedido entra como <b>Pendente</b>. Enquanto não for analisado, você pode cancelá-lo.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModalSolicitacao()">Cancelar</button>
+      <button class="btn btn-primary" id="btnEnviarPedidoFerias" onclick="salvarSolicitacao()"><i class="fas fa-paper-plane"></i> Enviar pedido</button>
     </div>
   </div>
 </div>
