@@ -145,13 +145,15 @@ body {
 }
 
 .login-logo-img {
-  width: 72px; height: 72px;
+  display: block;
+  width: 280px; max-width: 100%;
+  height: auto;
   object-fit: contain;
-  border-radius: 16px;
-  margin-bottom: 16px;
+  border-radius: 18px;
+  margin: 0 auto 18px;
   box-shadow: 0 8px 24px rgba(15,42,94,.3);
   background: linear-gradient(135deg, var(--navy), var(--blue-mid));
-  padding: 8px;
+  padding: 18px 22px;
 }
 
 .login-logo-icon {
@@ -1784,6 +1786,8 @@ tbody td {
   display: inline-block;
 }
 
+.cracha-header-logo.logo-oficial { filter: none; height: 64px; }
+
 .cracha-header-logo.custom-logo {
   filter: none;
   background: rgba(255,255,255,.15);
@@ -2402,10 +2406,11 @@ thead th[data-col] { cursor: pointer; }
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
     <div class="login-logo">
-      <!-- Logo customizada (carregada do localStorage) -->
-      <img id="loginLogoImg" class="login-logo-img" src="" alt="Logo" style="display:none;">
-      <!-- Fallback: ícone padrão (exibido se não houver logo customizada) -->
-      <div class="login-logo-icon" id="loginLogoFallback">
+      <!-- Logo oficial (logo-smc-branca.png); se um admin trocar a logo, initLoginLogo usa a dele -->
+      <img id="loginLogoImg" class="login-logo-img" src="logo-smc-branca.png" width="640" height="423" alt="Prefeitura de Araçatuba – Secretaria de Cultura"
+           onerror="this.style.display='none';document.getElementById('loginLogoFallback').style.display='inline-flex';">
+      <!-- Reserva: ícone, só se a imagem não carregar -->
+      <div class="login-logo-icon" id="loginLogoFallback" style="display:none;">
         <i class="fas fa-landmark"></i>
       </div>
       <h1>Gestão de Servidores</h1>
@@ -5137,22 +5142,11 @@ async function limparTodosDados() {
 // ============================================================
 // ===== LOGO FUNCTIONS =======================================
 // ============================================================
+// Logo oficial (branca, fundo transparente), publicada junto com o site. Uma logo
+// enviada por um admin (clicando na logo do menu) fica no banco e tem prioridade.
+const LOGO_OFICIAL = 'logo-smc-branca.png';
 function getDefaultLogoSrc() {
-  const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="white">
-    <rect x="20" y="4" width="40" height="6" rx="3"/>
-    <rect x="16" y="10" width="48" height="4" rx="2"/>
-    <path d="M16 14 L20 50 L40 56 L60 50 L64 14 Z" fill="none" stroke="white" stroke-width="2"/>
-    <line x1="16" y1="14" x2="64" y2="14" stroke="white" stroke-width="2"/>
-    <line x1="40" y1="14" x2="40" y2="52" stroke="white" stroke-width="1.5"/>
-    <line x1="16" y1="14" x2="64" y2="52" stroke="white" stroke-width="1.5"/>
-    <line x1="64" y1="14" x2="16" y2="52" stroke="white" stroke-width="1.5"/>
-    <ellipse cx="40" cy="34" rx="8" ry="8" fill="none" stroke="white" stroke-width="1.5"/>
-    <text x="40" y="38" text-anchor="middle" font-size="8" fill="white" font-family="serif">A</text>
-    <path d="M8 52 Q16 60 24 56 Q32 64 40 60 Q48 64 56 56 Q64 60 72 52" fill="none" stroke="white" stroke-width="2"/>
-    <circle cx="40" cy="68" r="5" fill="none" stroke="white" stroke-width="1.5"/>
-    <rect x="37" y="73" width="6" height="4" rx="1"/>
-  </svg>`;
-  return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+  return LOGO_OFICIAL;
 }
 
 function getLogoSalva() {
@@ -5169,14 +5163,22 @@ function initLogo() {
   } else {
     logoImg.src = getDefaultLogoSrc();
     logoImg.classList.remove('custom');
-    logoImg.style.filter = 'brightness(0) invert(1)';
+    logoImg.style.filter = 'none';
   }
 }
 
-// A logo fica no banco (system_config): assim aparece em todos os computadores
+// Logo trocada por um admin fica no banco (system_config) e vale em todos os
+// computadores; se o banco não tiver nenhuma, apaga a cópia guardada no navegador
+// e volta a logo oficial.
 async function carregarLogoDaNuvem() {
   try {
-    await DB.getConfig(STORAGE_LOGO_KEY);
+    if (DB._online) {
+      const { data, error } = await supabaseClient.from('system_config').select('value').eq('key', STORAGE_LOGO_KEY).maybeSingle();
+      if (!error) {
+        if (data && safeImg(data.value)) localStorage.setItem(STORAGE_LOGO_KEY, data.value);
+        else localStorage.removeItem(STORAGE_LOGO_KEY);
+      }
+    }
     initLoginLogo();
   } catch (e) { console.warn('Logo não carregada da nuvem:', e); }
 }
@@ -5191,8 +5193,8 @@ function handleLogoUpload(input) {
   if (!exigirOnline()) return;
   const reader = new FileReader();
   reader.onload = function(e) {
-    // Reduz para 256 px em PNG (mantém transparência e deixa o carregamento leve)
-    comprimirImagem(e.target.result, 256, 256, async function(dataUrl) {
+    // Reduz para até 640 px em PNG (mantém transparência e nitidez na tela de login)
+    comprimirImagem(e.target.result, 640, 640, async function(dataUrl) {
       const r = await DB.setConfig(STORAGE_LOGO_KEY, dataUrl);
       if (!r.ok) { showToast('Não foi possível salvar a logo: ' + errMsg(r.error), 'error'); return; }
       initLogo();
@@ -5333,14 +5335,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function initLoginLogo() {
   try {
-    const savedLogo = getLogoSalva();
     const loginImg = document.getElementById('loginLogoImg');
-    const loginFallback = document.getElementById('loginLogoFallback');
-    if (savedLogo && loginImg && loginFallback) {
-      loginImg.src = savedLogo;
-      loginImg.style.display = 'inline-block';
-      loginFallback.style.display = 'none';
-    }
+    if (!loginImg) return;
+    const alvo = getLogoSalva() || getDefaultLogoSrc();
+    if (loginImg.getAttribute('src') !== alvo) loginImg.src = alvo;
   } catch (e) {
     console.warn('Erro ao carregar logo do login:', e);
   }
@@ -6079,7 +6077,7 @@ function openCracha(idx) {
   const savedLogo = getLogoSalva();
   const logoHtml = savedLogo
     ? `<img src="${savedLogo}" class="cracha-header-logo custom-logo" alt="Logo">`
-    : `<img src="${getDefaultLogoSrc()}" class="cracha-header-logo" alt="Logo">`;
+    : `<img src="${getDefaultLogoSrc()}" class="cracha-header-logo logo-oficial" alt="Logo">`;
 
   // Foto
   const foto = safeImg(s.foto);
@@ -6365,7 +6363,7 @@ function renderCrachaDigitalPage(ref) {
   body.innerHTML = `
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8fafc,#eff6ff);font-family:'DM Sans',sans-serif;padding:20px;">
       <div style="max-width:400px;width:100%;text-align:center;">
-        <img src="${logoSrc}" class="${logoClass}" alt="Logo" style="height:56px;margin-bottom:16px;${savedLogo ? 'border-radius:8px;padding:4px;background:rgba(15,42,94,.05);' : 'filter:brightness(0) saturate(0);opacity:.3;'}">
+        <img src="${logoSrc}" class="${logoClass}" alt="Logo" style="height:56px;margin-bottom:16px;${savedLogo ? 'border-radius:8px;padding:4px;background:rgba(15,42,94,.05);' : 'height:96px;border-radius:14px;padding:10px 14px;background:linear-gradient(135deg,#0f2a5e,#2256b8);'}">
         <div class="cracha-selo valido" style="margin-bottom:20px;display:inline-flex;">
           <i class="fas fa-check-circle" aria-hidden="true"></i> Servidor cadastrado
         </div>
