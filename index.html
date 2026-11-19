@@ -3434,28 +3434,28 @@ thead th[data-col] { cursor: pointer; }
     <div class="admin-card" style="margin-bottom:16px;">
       <div class="admin-card-body" style="padding:14px;">
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-          <select class="form-input" id="fFiltroTipo" onchange="renderFeriasTable()" style="max-width:160px;" aria-label="Filtrar por tipo">
+          <select class="form-input" id="fFiltroTipo" autocomplete="off" onchange="renderFeriasTable()" style="max-width:160px;" aria-label="Filtrar por tipo">
             <option value="">Todos os tipos</option>
             <option value="ferias">Férias</option>
             <option value="abonada">Abonada</option>
             <option value="falta">Falta justificada</option>
             <option value="folga_tre">Folga TRE</option>
           </select>
-          <select class="form-input" id="fFiltroStatus" onchange="renderFeriasTable()" style="max-width:160px;" aria-label="Filtrar por status">
+          <select class="form-input" id="fFiltroStatus" autocomplete="off" onchange="renderFeriasTable()" style="max-width:160px;" aria-label="Filtrar por status">
             <option value="">Todos os status</option>
             <option value="aprovado">Aprovado</option>
             <option value="pendente">Pendente</option>
             <option value="rejeitado">Rejeitado</option>
           </select>
-          <select class="form-input" id="fFiltroLocal" onchange="renderFeriasTable()" style="max-width:200px;" aria-label="Filtrar por local"></select>
-          <select class="form-input" id="fFiltroMes" onchange="renderFeriasTable()" style="max-width:140px;" aria-label="Filtrar por mês">
+          <select class="form-input" id="fFiltroLocal" autocomplete="off" onchange="renderFeriasTable()" style="max-width:200px;" aria-label="Filtrar por local"></select>
+          <select class="form-input" id="fFiltroMes" autocomplete="off" onchange="renderFeriasTable()" style="max-width:140px;" aria-label="Filtrar por mês">
             <option value="">Todos os meses</option>
             <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
             <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
             <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
             <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
           </select>
-          <input type="search" class="form-input" id="fFiltroBusca" placeholder="Buscar servidor..." oninput="renderFeriasTable()" style="max-width:200px;" aria-label="Buscar servidor">
+          <input type="search" class="form-input" id="fFiltroBusca" autocomplete="off" placeholder="Buscar servidor..." oninput="renderFeriasTable()" style="max-width:200px;" aria-label="Buscar servidor">
         </div>
       </div>
     </div>
@@ -8109,9 +8109,20 @@ async function renderFeriasPage() {
   populateFeriasServidorSelect();
   populateFeriasLocalFilter();
   renderFeriasStats();
+  const pendentes = feriasData.filter(f => f.status === 'pendente').length;
+  // Sem pedido pendente, o filtro "Pendente" (deixado por "Ver pedidos pendentes")
+  // volta para "Todos os status", para a tabela não parecer vazia
+  const filtroStatus = document.getElementById('fFiltroStatus');
+  if (!pendentes && filtroStatus.value === 'pendente') filtroStatus.value = '';
   renderFeriasTable();
   renderFeriasCal();
-  mostrarContagemPendentes(feriasData.filter(f => f.status === 'pendente').length);
+  mostrarContagemPendentes(pendentes);
+}
+
+// Volta todos os filtros da tela de Férias para "todos"
+function limparFiltrosFerias() {
+  ['fFiltroTipo', 'fFiltroStatus', 'fFiltroLocal', 'fFiltroMes', 'fFiltroBusca'].forEach(id => { document.getElementById(id).value = ''; });
+  renderFeriasTable();
 }
 
 // Badge do menu e aviso da tela de Férias com o número de pedidos pendentes
@@ -8236,7 +8247,18 @@ function renderFeriasTable() {
   const filtered = getFeriasFiltradas();
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--gray-400);"><i class="fas fa-umbrella-beach" style="font-size:24px;margin-bottom:8px;display:block;" aria-hidden="true"></i>Nenhum registro encontrado</td></tr>';
+    // Com filtro ligado, diz quais e oferece limpar (os registros não sumiram)
+    const ativos = [['fFiltroTipo', 'tipo'], ['fFiltroStatus', 'status'], ['fFiltroLocal', 'local'], ['fFiltroMes', 'mês'], ['fFiltroBusca', 'busca']]
+      .filter(([id]) => document.getElementById(id).value)
+      .map(([id, nome]) => {
+        const el = document.getElementById(id);
+        return nome + ': ' + (el.tagName === 'SELECT' ? el.options[el.selectedIndex].textContent : el.value);
+      });
+    const msg = ativos.length && feriasData.length
+      ? 'Nenhum registro com os filtros escolhidos (' + esc(ativos.join('; ')) + ').' +
+        '<div style="margin-top:10px;"><button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="limparFiltrosFerias()"><i class="fas fa-filter-circle-xmark" aria-hidden="true"></i> Limpar filtros e ver todos os ' + feriasData.length + ' registros</button></div>'
+      : 'Nenhum registro encontrado';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--gray-400);"><i class="fas fa-umbrella-beach" style="font-size:24px;margin-bottom:8px;display:block;" aria-hidden="true"></i>' + msg + '</td></tr>';
     return;
   }
 
