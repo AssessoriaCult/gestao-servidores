@@ -963,6 +963,24 @@ body {
 }
 
 .btn-cracha:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(139,92,246,.35); }
+.btn-historico { background: linear-gradient(135deg, #0f766e, #14b8a6); color: white; border: none; }
+.btn-historico:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(20,184,166,.35); }
+.td-cargo { display: block; font-size: 11px; font-weight: 400; color: var(--gray-400); margin-top: 1px; }
+/* Histórico de serviço */
+.hist-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 16px; background: var(--gray-50); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+.hist-resumo dt { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-400); }
+.hist-resumo dd { margin: 2px 0 0; font-size: 13px; color: var(--navy); }
+.hist-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.hist-lista { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--gray-100); margin-left: 8px; }
+.hist-item { position: relative; padding: 0 0 14px 20px; }
+.hist-item::before { content: ''; position: absolute; left: -7px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--hist-cor, var(--sky)); box-shadow: 0 0 0 3px #fff; }
+.hist-item-topo { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.hist-data { font-size: 11.5px; font-weight: 700; color: var(--gray-500); white-space: nowrap; }
+.hist-titulo { font-size: 13px; font-weight: 700; color: var(--navy); }
+.hist-texto { font-size: 12.5px; color: var(--gray-600); margin-top: 2px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.hist-meta { font-size: 10.5px; color: var(--gray-400); margin-top: 2px; }
+.hist-acao { margin-left: auto; background: none; border: none; color: var(--gray-300); cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 6px; }
+.hist-acao:hover, .hist-acao:focus-visible { color: var(--danger); background: #fef2f2; }
 
 /* ===== TABLE SECTION ===== */
 .table-card {
@@ -1142,6 +1160,18 @@ tbody td {
 }
 
 .badge-local { background: #eff6ff; color: var(--blue); border: 1px solid #bfdbfe; }
+.form-secao-titulo { font-size: 12px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: .04em; border-top: 1px solid var(--gray-100); padding-top: 12px; display: flex; align-items: center; gap: 6px; }
+.expediente-wrap { overflow-x: auto; border: 1px solid var(--gray-100); border-radius: 10px; }
+.expediente-tabela { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.expediente-tabela th { text-align: left; font-size: 10.5px; text-transform: uppercase; color: var(--gray-400); padding: 6px 8px; background: var(--gray-50); }
+.expediente-tabela td { padding: 4px 8px; border-top: 1px solid var(--gray-100); }
+.expediente-tabela input[type="time"], .expediente-tabela select { font: inherit; padding: 4px 6px; border: 1px solid var(--gray-200); border-radius: 6px; background: #fff; }
+.expediente-tabela input:disabled, .expediente-tabela select:disabled { opacity: .45; }
+.expediente-tabela label { display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
+.local-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; box-shadow: 0 0 0 1px rgba(0,0,0,.12); flex-shrink: 0; }
+.cor-sugestao { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--gray-200); cursor: pointer; padding: 0; }
+.cor-sugestao[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--navy); }
+.cor-sugestao:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 .badge-empty { background: #fef9c3; color: #92400e; border: 1px solid #fde68a; font-size: 10px; }
 .badge-birthday { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
 .badge-admin { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: white; border: none; font-size: 9px; font-weight: 700; letter-spacing: .5px; }
@@ -2675,8 +2705,12 @@ thead th[data-col] { cursor: pointer; }
       <i class="fas fa-umbrella-beach"></i> Férias e Abonadas
       <span class="nav-badge" id="feriasPendBadge" style="display:none;" title="Pedidos aguardando aprovação">0</span>
     </button>
+    <button class="nav-item admin-only" onclick="showPage('atestados', this)" style="display:none;">
+      <i class="fas fa-file-medical"></i> Atestados
+      <span class="nav-badge" id="atestPendBadge" style="display:none;" title="Atestados aguardando conferência">0</span>
+    </button>
     <button class="nav-item" onclick="showPage('minhassolicitacoes', this)">
-      <i class="fas fa-calendar-plus"></i> Minhas Férias e Folgas
+      <i class="fas fa-calendar-plus"></i> Meus Pedidos e Atestados
     </button>
 
     <div class="nav-label">Conta</div>
@@ -3015,6 +3049,14 @@ thead th[data-col] { cursor: pointer; }
               <option value="inativo">Inativo</option>
             </select>
           </div>
+          <div class="form-group" id="fLocalCorGrupo">
+            <label class="form-label" for="fLocalCor">Cor do local</label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <input type="color" id="fLocalCor" value="#1a4493" oninput="marcarSugestaoCor(this.value)" style="width:46px;height:34px;border:1px solid var(--gray-200);border-radius:8px;padding:2px;cursor:pointer;background:#fff;">
+              <div id="fLocalCorSugestoes" style="display:flex;gap:6px;flex-wrap:wrap;" role="group" aria-label="Cores sugeridas"></div>
+            </div>
+            <span style="font-size:10.5px;color:var(--gray-400);">Usada no gráfico "Servidores por Local" e nas etiquetas dos servidores.</span>
+          </div>
         </div>
       </div>
       <div class="modal-footer">
@@ -3030,8 +3072,8 @@ thead th[data-col] { cursor: pointer; }
   <div class="page" id="page-minhassolicitacoes">
     <div class="page-header">
       <div class="page-header-text">
-        <h1><i class="fas fa-calendar-plus" style="color:var(--sky);margin-right:8px;"></i>Minhas Férias e Folgas</h1>
-        <p>Peça férias, folga TRE ou abonada. O pedido fica pendente até o administrador aprovar.</p>
+        <h1><i class="fas fa-calendar-plus" style="color:var(--sky);margin-right:8px;"></i>Meus Pedidos e Atestados</h1>
+        <p>Peça férias, folga TRE ou abonada e envie seus atestados. Tudo fica pendente até a administração analisar.</p>
       </div>
       <button class="btn btn-primary" id="btnNovaSolicitacao" onclick="openModalSolicitacao()" style="display:none;">
         <i class="fas fa-plus"></i> Nova solicitação
@@ -3067,6 +3109,76 @@ thead th[data-col] { cursor: pointer; }
               </tr>
             </thead>
             <tbody id="solicTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-card" id="atestCard" style="display:none;margin-top:16px;">
+      <div class="admin-card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <i class="fas fa-file-medical"></i> <span>Meus atestados</span>
+        <button class="btn btn-primary" style="margin-left:auto;font-size:12px;padding:6px 12px;" onclick="openModalAtestado()">
+          <i class="fas fa-paperclip"></i> Enviar atestado
+        </button>
+      </div>
+      <div class="admin-card-body" style="padding:0;">
+        <div style="overflow-x:auto;">
+          <table class="data-table tabela-cartoes" style="width:100%;">
+            <thead>
+              <tr>
+                <th>Período</th>
+                <th>Situação</th>
+                <th>Dias</th>
+                <th>Enviado em</th>
+                <th>Observação</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="atestTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ATESTADOS (administração) ===== -->
+  <div class="page" id="page-atestados">
+    <div class="page-header">
+      <div class="page-header-text">
+        <h1><i class="fas fa-file-medical" style="color:var(--sky);margin-right:8px;"></i>Atestados</h1>
+        <p>Atestados enviados pelos servidores. Dado de saúde: abra o arquivo só quando precisar conferir.</p>
+      </div>
+      <button class="btn btn-primary" onclick="openModalAtestado(true)">
+        <i class="fas fa-plus"></i> Registrar atestado
+      </button>
+    </div>
+    <div class="admin-card" style="margin-bottom:16px;">
+      <div class="admin-card-body" style="padding:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <select class="form-input form-select" id="atestFiltroStatus" onchange="renderAtestadosTabela()" style="max-width:220px;" aria-label="Filtrar por situação">
+          <option value="enviado">Aguardando conferência</option>
+          <option value="">Todas as situações</option>
+          <option value="conferido">Conferidos</option>
+          <option value="recusado">Recusados</option>
+        </select>
+        <input type="search" class="form-input" id="atestFiltroBusca" placeholder="Buscar servidor..." oninput="renderAtestadosTabela()" style="max-width:240px;" aria-label="Buscar servidor">
+      </div>
+    </div>
+    <div class="admin-card">
+      <div class="admin-card-body" style="padding:0;">
+        <div style="overflow-x:auto;">
+          <table class="data-table tabela-cartoes" style="width:100%;">
+            <thead>
+              <tr>
+                <th>Servidor</th>
+                <th>Situação</th>
+                <th>Período</th>
+                <th>Dias</th>
+                <th>Enviado</th>
+                <th>Observação</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="atestAdminTbody"></tbody>
           </table>
         </div>
       </div>
@@ -3170,6 +3282,42 @@ thead th[data-col] { cursor: pointer; }
             <button class="btn btn-success" id="btnCadastrarUsuario" onclick="adminAddUser()">
               <i class="fas fa-plus"></i> Cadastrar usuário
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Documentos: papel timbrado e assinatura das declarações -->
+    <div class="admin-card admin-only" style="margin-bottom:18px;display:none;" id="docsCard">
+      <div class="admin-card-header">
+        <i class="fas fa-file-signature"></i> Declarações: papel timbrado e assinatura
+      </div>
+      <div class="admin-card-body">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+          <div style="flex:0 0 120px;">
+            <div id="timbrePreview" style="width:120px;height:170px;border:1px solid var(--gray-200);border-radius:8px;background:#fff center/contain no-repeat;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--gray-400);text-align:center;padding:6px;">Sem papel timbrado</div>
+          </div>
+          <div style="flex:1;min-width:240px;">
+            <p style="font-size:12.5px;color:var(--gray-600);line-height:1.6;margin-bottom:10px;">
+              Envie a imagem da página do papel timbrado (PNG ou JPG, de preferência em tamanho A4 em pé).
+              Ela vai ao fundo de cada declaração. Sem ela, o PDF sai com a faixa e a logo do sistema.
+            </p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+              <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="document.getElementById('timbreInput').click()"><i class="fas fa-upload"></i> Enviar papel timbrado</button>
+              <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" id="btnRemoverTimbre" onclick="removerTimbre()"><i class="fas fa-trash"></i> Remover</button>
+              <input type="file" id="timbreInput" accept="image/png,image/jpeg" style="display:none;" onchange="enviarTimbre(this)">
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1;">
+                <label class="form-label" for="cfgSignNome">Assinatura padrão: nome</label>
+                <input type="text" class="form-input" id="cfgSignNome" maxlength="120" placeholder="Nome de quem assina">
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label class="form-label" for="cfgSignCargo">Cargo</label>
+                <input type="text" class="form-input" id="cfgSignCargo" maxlength="120" placeholder="Ex.: Secretária Municipal de Cultura">
+              </div>
+            </div>
+            <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" id="btnSalvarSignatario" onclick="salvarSignatarioPadrao()"><i class="fas fa-save"></i> Salvar assinatura padrão</button>
           </div>
         </div>
       </div>
@@ -3411,6 +3559,50 @@ thead th[data-col] { cursor: pointer; }
             <!-- Populado dinamicamente via JS -->
           </select>
         </div>
+        <!-- Dados funcionais e jornada (aparecem depois da migração de 19/11/2026) -->
+        <div class="form-group full jornada-campos" style="margin-top:4px;">
+          <div class="form-secao-titulo"><i class="fas fa-briefcase" aria-hidden="true"></i> Dados funcionais e jornada</div>
+        </div>
+        <div class="form-group jornada-campos">
+          <label class="form-label" for="fCargo">Cargo / função</label>
+          <input type="text" class="form-input" id="fCargo" placeholder="Ex: Agente Cultural" maxlength="120" autocomplete="off">
+        </div>
+        <div class="form-group jornada-campos">
+          <label class="form-label" for="fVinculo">Vínculo</label>
+          <select class="form-input form-select" id="fVinculo">
+            <option value="">Não informado</option>
+            <option value="Efetivo">Efetivo (concursado)</option>
+            <option value="Comissionado">Comissionado</option>
+            <option value="Contratado">Contratado</option>
+            <option value="Terceirizado">Terceirizado</option>
+            <option value="Estagiário">Estagiário</option>
+            <option value="Cedido">Cedido de outro órgão</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+        <div class="form-group jornada-campos">
+          <label class="form-label" for="fAdmissao">Data de admissão</label>
+          <input type="date" class="form-input" id="fAdmissao">
+        </div>
+        <div class="form-group jornada-campos">
+          <label class="form-label" for="fCarga">Carga horária semanal (horas)</label>
+          <input type="number" class="form-input" id="fCarga" min="1" max="60" step="1" placeholder="Ex: 40" oninput="atualizarTotalExpediente()">
+        </div>
+        <div class="form-group full jornada-campos">
+          <label class="form-label">Horário de expediente</label>
+          <div class="expediente-wrap">
+            <table class="expediente-tabela">
+              <thead><tr><th scope="col">Dia</th><th scope="col">Entrada</th><th scope="col">Saída</th><th scope="col">Intervalo</th></tr></thead>
+              <tbody id="fExpedienteGrid"></tbody>
+            </table>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;">
+            <button type="button" class="btn btn-secondary" style="font-size:11.5px;padding:5px 10px;" onclick="repetirSegundaNosDiasUteis()">
+              <i class="fas fa-clone" aria-hidden="true"></i> Repetir segunda de terça a sexta
+            </button>
+            <span id="fExpedienteTotal" role="status" style="font-size:11.5px;color:var(--gray-500);"></span>
+          </div>
+        </div>
         <div class="form-group full">
           <label class="form-label">Foto do servidor</label>
           <div class="foto-upload-area" id="fotoUploadArea" role="button" tabindex="0" aria-label="Adicionar ou trocar foto do servidor" onclick="document.getElementById('fFotoInput').click()">
@@ -3455,6 +3647,7 @@ thead th[data-col] { cursor: pointer; }
       <div class="confirm-text">
         <h3>Confirmar exclusão</h3>
         <p>Deseja realmente excluir o servidor <strong id="confirmName"></strong>? Esta ação não pode ser desfeita.</p>
+        <p id="confirmExtra" role="alert" style="display:none;margin-top:10px;font-size:12.5px;line-height:1.55;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;text-align:left;"></p>
       </div>
     </div>
     <div class="modal-footer">
@@ -3767,6 +3960,13 @@ function nomeArquivo(s) {
   return normTxt(s || 'arquivo').replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'arquivo';
 }
 
+// Erro de tabela que ainda não existe no banco (migração não aplicada)
+function erroTabelaInexistente(error, tabela) {
+  const m = String((error && error.message) || '');
+  return !!error && (['42P01', 'PGRST205'].includes(error.code) || /does not exist|schema cache/i.test(m)) &&
+    (!tabela || m.includes(tabela));
+}
+
 function errMsg(error) {
   return (error && (error.message || error.msg || error.error_description)) || 'erro desconhecido';
 }
@@ -3789,10 +3989,20 @@ function setOnlineIndicator(online) {
 // refletida na tela se o banco confirmar. O localStorage guarda apenas uma
 // cópia para leitura rápida/sem conexão, apagada ao sair (LGPD).
 const CAMPOS_SERVIDOR = ['nome', 'matricula', 'telefone', 'email', 'recado', 'dn', 'local', 'foto'];
+// Dados funcionais e jornada (migração 20261119); sem a migração ficam de fora
+const CAMPOS_JORNADA = ['cargo', 'vinculo', 'data_admissao', 'carga_horaria_semanal', 'expediente'];
 
 function linhaServidor(s) {
   const row = {};
   CAMPOS_SERVIDOR.forEach(k => { row[k] = s[k] == null ? '' : String(s[k]); });
+  if (DB._servidoresJornada !== false) {
+    row.cargo = s.cargo ? String(s.cargo).slice(0, 120) : null;
+    row.vinculo = s.vinculo ? String(s.vinculo).slice(0, 40) : null;
+    row.data_admissao = dataISOValida(s.data_admissao) ? s.data_admissao : null;
+    const carga = parseInt(s.carga_horaria_semanal, 10);
+    row.carga_horaria_semanal = carga >= 1 && carga <= 60 ? carga : null;
+    row.expediente = s.expediente && typeof s.expediente === 'object' && Object.keys(s.expediente).length ? s.expediente : null;
+  }
   return row;
 }
 
@@ -3914,7 +4124,11 @@ const DB = {
   // Devolve a lista da nuvem, ou null se não foi possível consultar
   async getServidores() {
     if (!this._online) return null;
-    const { data, error } = await supabaseClient.from('servidores').select('id,' + CAMPOS_SERVIDOR.join(',')).order('nome');
+    const base = 'id,' + CAMPOS_SERVIDOR.join(',');
+    let { data, error } = await supabaseClient.from('servidores').select(base + ',' + CAMPOS_JORNADA.join(',')).order('nome');
+    // Antes da migração de 19/11/2026 as colunas de jornada não existem
+    this._servidoresJornada = !(error && /cargo|vinculo|admissao|carga_horaria|expediente/.test(error.message || ''));
+    if (!this._servidoresJornada) ({ data, error } = await supabaseClient.from('servidores').select(base).order('nome'));
     if (error) { console.warn('DB.getServidores:', error.message); return null; }
     return data || [];
   },
@@ -3939,6 +4153,11 @@ const DB = {
     return { ok: true };
   },
   async renomearLocalEmServidores(antigo, novo) {
+    // Pela função do banco, a renomeação não vira "troca de lotação" no histórico
+    const rpc = await supabaseClient.rpc('renomear_local_servidores', { p_antigo: antigo, p_novo: novo });
+    if (!rpc.error) return { ok: true };
+    if (!/renomear_local_servidores|PGRST202|function/i.test((rpc.error.message || '') + ' ' + (rpc.error.code || ''))) return { ok: false, error: rpc.error };
+    // Banco sem a migração de 19/11/2026: atualiza direto
     const { error } = await supabaseClient.from('servidores').update({ local: novo }).eq('local', antigo);
     if (!error) await supabaseClient.from('ferias_abonadas').update({ local: novo }).eq('local', antigo);
     return error ? { ok: false, error } : { ok: true };
@@ -3964,6 +4183,18 @@ const DB = {
       const { data, error } = await supabaseClient.from('servidores').select('id,nome');
       if (error) return { ok: false, error };
       antigos = data || [];
+      // Histórico e atestados são apagados com o servidor antigo: só substitui se
+      // todos tiverem para onde ir (mesmo nome, único, no arquivo). Nada é gravado antes.
+      const semDestino = await this._registrosSemDestino(antigos, lista);
+      if (semDestino === null) {
+        return { ok: false, bloqueado: true, error: { message: 'não foi possível conferir o histórico e os atestados dos servidores atuais; tente de novo' } };
+      }
+      if (semDestino.length) {
+        return { ok: false, bloqueado: true, error: { message: semDestino.length +
+          ' servidor(es) com histórico ou atestados não têm o mesmo nome (único) no arquivo: ' +
+          semDestino.slice(0, 5).join(', ') + (semDestino.length > 5 ? '...' : '') +
+          '. Corrija os nomes no arquivo ou use a opção ADICIONAR' } };
+      }
     }
     const novos = [];
     for (let i = 0; i < lista.length; i += 50) {
@@ -3978,13 +4209,61 @@ const DB = {
     let vinculosPerdidos = 0;
     if (antigos.length) {
       await this._transferirFerias(antigos, novos);
+      // Histórico e atestados também passam para o registro novo de mesmo nome
+      const okHist = await this._transferirPorNome('historico_servidor', antigos, novos);
+      const okAtest = await this._transferirPorNome('atestados', antigos, novos);
       vinculosPerdidos = await this._transferirVinculosLogin(antigos, novos);
+      if (!okHist || !okAtest) {
+        // Sem apagar os antigos: nada se perde (fica duplicado até alguém conferir)
+        return { ok: false, parcial: true, error: { message: 'não foi possível transferir todo o histórico ou os atestados, por isso os registros antigos foram mantidos' } };
+      }
     }
     for (let i = 0; i < antigos.length; i += 200) {
       const { error } = await supabaseClient.from('servidores').delete().in('id', antigos.slice(i, i + 200).map(r => r.id));
-      if (error) return { ok: false, error, parcial: true };
+      if (error) return { ok: false, error: { message: 'parte dos registros antigos não pôde ser removida (' + errMsg(error) + ')' }, parcial: true };
     }
     return { ok: true, count: novos.length, vinculosPerdidos };
+  },
+  // Na substituição, os registros de uma tabela ligada ao servidor (servidor_id)
+  // passam para o registro novo de mesmo nome (nome único nas duas listas)
+  async _transferirPorNome(tabela, antigos, novos) {
+    const unicos = lista => {
+      const cont = {}, mapa = {};
+      lista.forEach(s => { cont[s.nome] = (cont[s.nome] || 0) + 1; });
+      lista.forEach(s => { if (cont[s.nome] === 1) mapa[s.nome] = s.id; });
+      return mapa;
+    };
+    const novoPorNome = unicos(novos), antigoPorNome = unicos(antigos);
+    let ok = true;
+    for (const s of antigos) {
+      if (antigoPorNome[s.nome] !== s.id || novoPorNome[s.nome] == null) continue;
+      const { error } = await supabaseClient.from(tabela).update({ servidor_id: novoPorNome[s.nome] }).eq('servidor_id', s.id);
+      if (error) {
+        if (new RegExp(tabela).test(error.message || '') && /exist|schema cache/i.test(error.message || '')) return true; // tabela ainda não existe
+        ok = false; // continua com os demais; quem chamou não apaga os antigos
+      }
+    }
+    return ok;
+  },
+  // Servidores antigos que têm histórico ou atestados e não têm par de nome único no
+  // arquivo. Confere um a um só os que não têm par (sem depender do limite de linhas
+  // da consulta); se não der para conferir, devolve null e a importação não começa.
+  async _registrosSemDestino(antigos, lista) {
+    const conta = arr => { const c = {}; arr.forEach(s => { c[s.nome] = (c[s.nome] || 0) + 1; }); return c; };
+    const contNovo = conta(lista.map(linhaServidor)), contAntigo = conta(antigos);
+    const semPar = antigos.filter(s => !(contAntigo[s.nome] === 1 && contNovo[s.nome] === 1));
+    const comRegistros = [];
+    for (const s of semPar) {
+      for (const t of ['historico_servidor', 'atestados']) {
+        const { data, error } = await supabaseClient.from(t).select('id').eq('servidor_id', s.id).limit(1);
+        if (error) {
+          if (erroTabelaInexistente(error, t)) continue;
+          return null;
+        }
+        if (data && data.length) { comRegistros.push(s.nome); break; }
+      }
+    }
+    return comRegistros;
   },
   // Na substituição, o login ligado a um servidor passa para o registro novo de
   // mesmo nome (nome único nas duas listas). Devolve quantos logins ficaram sem vínculo.
@@ -4105,7 +4384,10 @@ const DB = {
   // === LOCAIS ===
   async getLocais() {
     if (this._online) {
-      const { data, error } = await supabaseClient.from('locais').select('id,nome,tipo,status').order('nome');
+      let { data, error } = await supabaseClient.from('locais').select('id,nome,tipo,status,cor').order('nome');
+      // Antes da migração de 19/11/2026 a coluna cor não existe
+      this._locaisComCor = !(error && /\bcor\b/.test(error.message || ''));
+      if (!this._locaisComCor) ({ data, error } = await supabaseClient.from('locais').select('id,nome,tipo,status').order('nome'));
       if (!error && data) { this._setLocal('sgc_locais', data); return data; }
     }
     const locais = this._getLocal('sgc_locais');
@@ -4115,15 +4397,18 @@ const DB = {
   getLocaisAtivos() { return this.getLocaisSync().filter(l => l.status === 'ativo'); },
   async addLocal(local) {
     if (!this._online) return { ok: false, error: SEM_CONEXAO };
+    const linha = { nome: local.nome, tipo: local.tipo || '', status: local.status || 'ativo' };
+    if (this._locaisComCor !== false && local.cor) linha.cor = local.cor;
     const { data, error } = await supabaseClient.from('locais')
-      .insert({ nome: local.nome, tipo: local.tipo || '', status: local.status || 'ativo' })
-      .select('id,nome,tipo,status').single();
+      .insert(linha)
+      .select(this._locaisComCor !== false ? 'id,nome,tipo,status,cor' : 'id,nome,tipo,status').single();
     if (error) return { ok: false, error };
     const locais = this.getLocaisSync(); locais.push(data); this._setLocal('sgc_locais', locais);
     return { ok: true };
   },
   async updateLocal(id, data) {
     if (!this._online) return { ok: false, error: SEM_CONEXAO };
+    if (this._locaisComCor === false) { data = { ...data }; delete data.cor; }
     const { data: rows, error } = await supabaseClient.from('locais').update(data).eq('id', id).select('id');
     if (error) return { ok: false, error };
     if (!rows || rows.length === 0) return { ok: false, error: { message: 'local não encontrado ou sem permissão' } };
@@ -4231,6 +4516,114 @@ const DB = {
     if (error) return { ok: false, error };
     return (data && data.length) ? { ok: true } : { ok: false, jaDecidido: true, error: { message: 'este pedido já foi analisado ou cancelado' } };
   },
+  // === HISTÓRICO DE SERVIÇO ===
+  async getHistorico(servidorId) {
+    if (!this._online) return null;
+    const { data, error } = await supabaseClient.from('historico_servidor')
+      .select('id,servidor_id,data,tipo,descricao,automatico,criado_por,created_at')
+      .eq('servidor_id', servidorId).order('data', { ascending: false });
+    if (error) {
+      console.warn('DB.getHistorico:', error.message);
+      if (/historico_servidor/.test(error.message || '')) this._historicoOk = false; // tabela ainda não existe
+      return null;
+    }
+    this._historicoOk = true;
+    return data || [];
+  },
+  async addHistorico(item) {
+    if (!this._online) return { ok: false, error: SEM_CONEXAO };
+    const { data, error } = await supabaseClient.from('historico_servidor').insert({
+      servidor_id: item.servidorId, data: item.data, tipo: item.tipo,
+      descricao: String(item.descricao).slice(0, 1000), criado_por: currentUser ? currentUser.nome : ''
+    }).select('id').single();
+    return error ? { ok: false, error } : { ok: true, id: data.id };
+  },
+  async deleteHistorico(id) {
+    if (!this._online) return { ok: false, error: SEM_CONEXAO };
+    const { data, error } = await supabaseClient.from('historico_servidor').delete().eq('id', id).select('id');
+    if (error) return { ok: false, error };
+    return (data && data.length) ? { ok: true } : { ok: false, error: { message: 'registro não encontrado ou sem permissão' } };
+  },
+
+  // === ATESTADOS (dado de saúde: o arquivo só é buscado quando alguém pede para ver) ===
+  _COLS_ATESTADO: 'id,servidor_id,data_inicio,data_fim,dias,observacao,arquivo_nome,arquivo_tipo,status,motivo,enviado_por,criado_por,analisado_por,analisado_em,created_at',
+  async getAtestados(servidorId) {
+    if (!this._online) return null;
+    let q = supabaseClient.from('atestados').select(this._COLS_ATESTADO);
+    if (servidorId != null) q = q.eq('servidor_id', servidorId);
+    const { data, error } = await q.order('data_inicio', { ascending: false });
+    if (error) {
+      console.warn('DB.getAtestados:', error.message);
+      if (/atestados/.test(error.message || '')) this._atestadosOk = false; // tabela ainda não existe
+      return null;
+    }
+    this._atestadosOk = true;
+    return data || [];
+  },
+  async getArquivoAtestado(id) {
+    if (!this._online) return null;
+    const { data, error } = await supabaseClient.from('atestados').select('arquivo,arquivo_tipo,arquivo_nome').eq('id', id).maybeSingle();
+    return error || !data ? null : data;
+  },
+  async insertAtestado(a) {
+    if (!this._online) return { ok: false, error: SEM_CONEXAO };
+    const linha = {
+      servidor_id: a.servidorId, data_inicio: a.dataInicio, data_fim: a.dataFim,
+      observacao: a.observacao || '', arquivo: a.arquivo, arquivo_nome: a.arquivoNome || '',
+      arquivo_tipo: a.arquivoTipo, criado_por: currentUser ? currentUser.nome : ''
+    };
+    // Atestado registrado pela administração já entra conferido
+    if (a.status === 'conferido') Object.assign(linha, { status: 'conferido', analisado_por: currentUser ? currentUser.nome : '', analisado_em: new Date().toISOString() });
+    const { data, error } = await supabaseClient.from('atestados').insert(linha).select('id').single();
+    return error ? { ok: false, error } : { ok: true, id: data.id };
+  },
+  // Confere ou recusa só o que ainda está aguardando análise
+  async decidirAtestado(id, status, motivo) {
+    if (!this._online) return { ok: false, error: SEM_CONEXAO };
+    const { data, error } = await supabaseClient.from('atestados').update({ status, motivo: motivo || '' })
+      .eq('id', id).eq('status', 'enviado').select('id');
+    if (error) return { ok: false, error };
+    return (data && data.length) ? { ok: true } : { ok: false, jaDecidido: true, error: { message: 'este atestado já foi analisado ou cancelado' } };
+  },
+  // O servidor cancela o próprio envio enquanto não foi analisado
+  async cancelarAtestado(id) {
+    if (!this._online) return { ok: false, error: SEM_CONEXAO };
+    const { data, error } = await supabaseClient.from('atestados').delete()
+      .eq('id', id).eq('status', 'enviado').eq('enviado_por', currentUser.auth_uid).select('id');
+    if (error) return { ok: false, error };
+    return (data && data.length) ? { ok: true } : { ok: false, jaDecidido: true, error: { message: 'atestado já analisado' } };
+  },
+  async deleteAtestado(id) {
+    if (!this._online) return { ok: false, error: SEM_CONEXAO };
+    const { data, error } = await supabaseClient.from('atestados').delete().eq('id', id).select('id');
+    if (error) return { ok: false, error };
+    return (data && data.length) ? { ok: true } : { ok: false, error: { message: 'registro não encontrado ou sem permissão' } };
+  },
+  // Quantos atestados e registros de histórico um servidor tem (0 se a tabela não
+  // existe; null se não deu para conferir)
+  async contarRegistrosServidor(id) {
+    if (!this._online) return null;
+    const [atestados, historico] = await Promise.all(['atestados', 'historico_servidor'].map(t => this._contar(t, id)));
+    return atestados === null || historico === null ? null : { atestados, historico };
+  },
+  async contarRegistrosTodos() {
+    if (!this._online) return null;
+    const [atestados, historico] = await Promise.all(['atestados', 'historico_servidor'].map(t => this._contar(t, null)));
+    return atestados === null || historico === null ? null : { atestados, historico };
+  },
+  async _contar(tabela, servidorId) {
+    let q = supabaseClient.from(tabela).select('id', { count: 'exact', head: true });
+    if (servidorId != null) q = q.eq('servidor_id', servidorId);
+    const { count, data, error } = await q;
+    if (error) return erroTabelaInexistente(error, tabela) ? 0 : null;
+    return typeof count === 'number' ? count : (data || []).length;
+  },
+  async contarAtestadosPendentes() {
+    if (!this._online) return null;
+    const { data, error } = await supabaseClient.from('atestados').select('id').eq('status', 'enviado');
+    return error ? null : (data || []).length;
+  },
+
   // O servidor desiste do próprio pedido, só enquanto ele estiver pendente
   async cancelarPedidoFerias(id) {
     if (!this._online) return { ok: false, error: SEM_CONEXAO };
@@ -4464,7 +4857,7 @@ async function enterApp() {
   updatePendingBadge();
   updateImportNotice();
   showPage('dashboard', document.querySelector('.nav-item'));
-  if (canAdmin) atualizarBadgeFeriasPendentes();
+  if (canAdmin) { atualizarBadgeFeriasPendentes(); atualizarBadgeAtestados(); }
 
   if (IS_RECOVERY_LINK && !recoveryModalShown) openRecoveryModal();
 }
@@ -5191,8 +5584,35 @@ function servidorDoArquivo(d) {
     recado: String(d.recado || 'Não tem').trim().slice(0, 150) || 'Não tem',
     dn: m ? m[1].padStart(2, '0') + '/' + m[2].padStart(2, '0') : '',
     local: String(d.local).trim().slice(0, 120),
-    foto: safeImg(d.foto)
+    foto: safeImg(d.foto),
+    // Dados funcionais e jornada (arquivos exportados depois de 19/11/2026)
+    cargo: d.cargo ? String(d.cargo).trim().slice(0, 120) : null,
+    vinculo: d.vinculo ? String(d.vinculo).trim().slice(0, 40) : null,
+    data_admissao: dataISOValida(d.data_admissao) ? d.data_admissao : null,
+    carga_horaria_semanal: Number.isInteger(Number(d.carga_horaria_semanal)) && d.carga_horaria_semanal >= 1 && d.carga_horaria_semanal <= 60 ? Number(d.carga_horaria_semanal) : null,
+    expediente: expedienteDoArquivo(d.expediente)
   };
+}
+
+// AAAA-MM-DD que existe no calendário (2024-02-30 não passa)
+function dataISOValida(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v || ''));
+  if (!m) return false;
+  const dt = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return dt.getUTCFullYear() === +m[1] && dt.getUTCMonth() === +m[2] - 1 && dt.getUTCDate() === +m[3];
+}
+
+// Só aceita dias conhecidos com horários HH:MM
+function expedienteDoArquivo(e) {
+  if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+  const out = {};
+  DIAS_SEMANA.forEach(([k]) => {
+    const d = e[k];
+    if (d && HORA_RE.test(String(d.ini || '')) && HORA_RE.test(String(d.fim || ''))) {
+      out[k] = { ini: d.ini, fim: d.fim, int: INTERVALOS.includes(Number(d.int)) ? Number(d.int) : 0 };
+    }
+  });
+  return Object.keys(out).length ? out : null;
 }
 
 async function recarregarServidores() {
@@ -5247,7 +5667,7 @@ function importarDadosJSON(input) {
     if (modo === 'replace') await renderAdminPanel();
     if (!r.ok) {
       showToast(r.parcial
-        ? 'Os novos registros foram gravados, mas parte dos antigos não pôde ser removida. Confira a lista.'
+        ? 'Os novos registros foram gravados, mas ' + errMsg(r.error) + '. Confira a lista (pode haver nomes repetidos).'
         : 'Importação não concluída (nada foi alterado): ' + errMsg(r.error), 'error');
       return;
     }
@@ -5278,9 +5698,14 @@ function updateImportNotice() {
 
 async function limparTodosDados() {
   if (!isMaster()) { showToast('Apenas o Master pode apagar dados.', 'error'); return; }
-  if (!confirm('ATENÇÃO: isso apagará TODOS os servidores do banco de dados. Deseja continuar?')) return;
-  if (!confirm('Tem certeza? Esta ação é irreversível! (Sugestão: exporte os dados antes.)')) return;
   if (!exigirOnline()) return;
+  // Histórico e atestados são apagados junto (e não vão no arquivo exportado)
+  const totais = await DB.contarRegistrosTodos();
+  if (totais === null) { showToast('Não foi possível conferir os atestados e o histórico ligados aos servidores. Tente de novo.', 'error'); return; }
+  const junto = [totais.atestados && totais.atestados + ' atestado(s)', totais.historico && totais.historico + ' registro(s) do histórico de serviço'].filter(Boolean).join(' e ');
+  if (!confirm('ATENÇÃO: isso apagará TODOS os servidores do banco de dados' +
+    (junto ? ' e, junto com eles, ' + junto + '. O arquivo exportado NÃO guarda atestados nem histórico' : '') + '. Deseja continuar?')) return;
+  if (!confirm('Tem certeza? Esta ação é irreversível!' + (junto ? '' : ' (Sugestão: exporte os dados antes.)'))) return;
   const r = await DB.apagarTodosServidores();
   if (!r.ok) { showToast('Não foi possível apagar: ' + errMsg(r.error), 'error'); return; }
   const total = servidores.length;
@@ -5294,7 +5719,7 @@ async function limparTodosDados() {
     performedByEmail: currentUser.email,
     targetUser: '-',
     targetEmail: '-',
-    description: `${currentUser.nome} apagou todos os ${total} servidores`
+    description: `${currentUser.nome} apagou todos os ${total} servidores` + (junto ? ` (com ${junto})` : '')
   });
   showToast('Todos os dados de servidores foram removidos.', 'success');
 }
@@ -5522,7 +5947,7 @@ function refreshAll() {
 function showPage(pageId, btn) {
   // Proteção de rota (a proteção real dos dados é o RLS do banco)
   const canAdmin = isAdminOrAbove();
-  const adminOnlyPages = ['servidores', 'admin', 'locais', 'ferias'];
+  const adminOnlyPages = ['servidores', 'admin', 'locais', 'ferias', 'atestados'];
 
   if (adminOnlyPages.includes(pageId) && !canAdmin) {
     showToast('Acesso restrito. Apenas administradores podem acessar esta página.', 'error');
@@ -5535,16 +5960,17 @@ function showPage(pageId, btn) {
   document.getElementById('page-' + pageId).classList.add('active');
   if (!btn) btn = document.querySelector(`.nav-item[onclick*="'${pageId}'"]`);
   if (btn) { btn.classList.add('active'); btn.setAttribute('aria-current', 'page'); }
-  const titles = { dashboard:'Dashboard', servidores:'Servidores', locais:'Locais de Trabalho', calendario:'Calendário de Aniversários', ferias:'Férias e Abonadas', minhassolicitacoes:'Minhas Férias e Folgas', admin:'Administração', minhaconta:'Minha Conta' };
+  const titles = { dashboard:'Dashboard', servidores:'Servidores', locais:'Locais de Trabalho', calendario:'Calendário de Aniversários', ferias:'Férias e Abonadas', atestados:'Atestados', minhassolicitacoes:'Meus Pedidos e Atestados', admin:'Administração', minhaconta:'Minha Conta' };
   document.getElementById('topbarTitle').textContent = titles[pageId] || pageId;
   document.title = (titles[pageId] || 'Gestão') + ' – Gestão de Servidores';
   closeSidebar();
   window.scrollTo(0, 0);
-  if (pageId === 'admin' && canAdmin) renderAdminPanel();
+  if (pageId === 'admin' && canAdmin) { renderAdminPanel(); carregarConfigDocumentos(); }
   if (pageId === 'locais' && canAdmin) renderLocaisTable();
   if (pageId === 'minhaconta') renderAccountPage();
   if (pageId === 'minhassolicitacoes') renderMinhasSolicitacoes();
   if (pageId === 'ferias' && canAdmin) renderFeriasPage();
+  if (pageId === 'atestados' && canAdmin) renderAtestadosPage();
 }
 
 function toggleSidebar() {
@@ -5596,7 +6022,7 @@ function renderDashboard() {
   servidores.forEach(s => { locais[s.local] = (locais[s.local] || 0) + 1; });
   const localLabels = Object.keys(locais);
   const localVals = Object.values(locais);
-  const blueShades = ['#1a4493','#2256b8','#3b82f6','#60a5fa','#93c5fd','#bfdbfe','#0ea5e9','#0369a1'];
+  const coresLocais = localLabels.map(corDoLocal); // cor de cada local (cadastro ou automática)
 
   const porMes = Array(12).fill(0);
   servidores.forEach(s => {
@@ -5609,7 +6035,7 @@ function renderDashboard() {
     if (chartLocal) chartLocal.destroy();
     chartLocal = new Chart(document.getElementById('chartLocal'), {
       type: 'doughnut',
-      data: { labels: localLabels, datasets: [{ data: localVals, backgroundColor: blueShades, borderWidth: 0, hoverOffset: 8 }] },
+      data: { labels: localLabels, datasets: [{ data: localVals, backgroundColor: coresLocais, borderColor: '#ffffff', borderWidth: 2, hoverOffset: 8 }] },
       options: {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { position: telaEstreita ? 'bottom' : 'right', labels: { font: { size: 11, family: 'DM Sans' }, boxWidth: 12, padding: 10 } } },
@@ -5703,6 +6129,9 @@ function renderTable(data) {
 
     const actionsHtml = canEdit ? `
       <div class="td-actions">
+        <button class="btn btn-historico btn-icon" onclick="openHistorico(${idx})" title="Histórico e declaração" aria-label="Histórico de serviço e declaração de ${nomeEsc}">
+          <i class="fas fa-clock-rotate-left" aria-hidden="true"></i>
+        </button>
         <button class="btn btn-cracha btn-icon" onclick="openCracha(${idx})" title="Gerar Crachá" aria-label="Gerar crachá de ${nomeEsc}">
           <i class="fas fa-id-badge" aria-hidden="true"></i>
         </button>
@@ -5718,13 +6147,13 @@ function renderTable(data) {
     return `
     <tr style="${isBday ? 'background:#faf5ff;' : ''}">
       ${fotoCell}
-      <td><div class="td-name"><span>${nomeEsc}${isBday ? ' <span role="img" aria-label="aniversariante de hoje">🎂</span>' : ''}</span></div></td>
+      <td><div class="td-name"><span>${nomeEsc}${isBday ? ' <span role="img" aria-label="aniversariante de hoje">🎂</span>' : ''}${s.cargo ? `<span class="td-cargo">${esc(s.cargo)}${s.carga_horaria_semanal ? ' · ' + Number(s.carga_horaria_semanal) + ' h/sem' : ''}</span>` : ''}</span></div></td>
       <td>${s.matricula && s.matricula !== '---' ? esc(s.matricula) : '<span class="badge badge-empty">—</span>'}</td>
       <td>${semTel ? '<span class="badge badge-empty"><i class="fas fa-exclamation-triangle" style="margin-right:3px;" aria-hidden="true"></i>Sem telefone</span>' : esc(s.telefone)}</td>
       <td>${semEm ? '<span class="badge badge-empty"><i class="fas fa-exclamation-triangle" style="margin-right:3px;" aria-hidden="true"></i>Sem email</span>' : `<a href="mailto:${esc(s.email)}" style="color:var(--blue-mid);text-decoration:none;">${esc(s.email)}</a>`}</td>
       <td style="font-size:12px;color:var(--gray-500);">${esc(s.recado || '—')}</td>
       <td><span class="badge badge-birthday">${esc(s.dn || '—')}</span></td>
-      <td><span class="badge badge-local">${esc(s.local)}</span></td>
+      <td><span class="badge badge-local">${pontoCorLocal(s.local)}${esc(s.local)}</span></td>
       <td>${actionsHtml}</td>
     </tr>`;
   }).join('');
@@ -5890,14 +6319,172 @@ function openModalEdit(idx) {
   document.getElementById('fEmail').value = (s.email === 'Não tem' ? '' : s.email) || '';
   document.getElementById('fRecado').value = (s.recado === 'Não tem' ? '' : s.recado) || '';
   garantirOpcaoLocal(s.local);
+  document.getElementById('fCargo').value = s.cargo || '';
+  const selVinc = document.getElementById('fVinculo');
+  if (s.vinculo && ![...selVinc.options].some(o => o.value === s.vinculo)) {
+    const opt = document.createElement('option'); opt.value = s.vinculo; opt.textContent = s.vinculo; selVinc.appendChild(opt);
+  }
+  selVinc.value = s.vinculo || '';
+  document.getElementById('fAdmissao').value = s.data_admissao || '';
+  document.getElementById('fCarga').value = s.carga_horaria_semanal || '';
+  renderExpedienteForm(s.expediente || null);
+  mostrarCamposJornada();
   if (safeImg(s.foto)) setFotoPreview(s.foto); else clearFotoPreview();
   openModal('modalServidor');
 }
 
 function clearModalForm() {
-  ['fNome','fMatricula','fDn','fTelefone','fEmail','fRecado'].forEach(id => document.getElementById(id).value = '');
+  ['fNome','fMatricula','fDn','fTelefone','fEmail','fRecado','fCargo','fVinculo','fAdmissao','fCarga'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fLocal').value = '';
+  renderExpedienteForm(null);
+  mostrarCamposJornada();
   clearFotoPreview();
+}
+
+// ===== JORNADA (expediente semanal) =====
+const DIAS_SEMANA = [['seg', 'Segunda', 'Seg'], ['ter', 'Terça', 'Ter'], ['qua', 'Quarta', 'Qua'], ['qui', 'Quinta', 'Qui'],
+                     ['sex', 'Sexta', 'Sex'], ['sab', 'Sábado', 'Sáb'], ['dom', 'Domingo', 'Dom']];
+const INTERVALOS = [0, 15, 30, 60, 90, 120];
+const HORA_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Sem a migração de 19/11/2026 os campos de jornada ficam ocultos
+function mostrarCamposJornada() {
+  document.querySelectorAll('.jornada-campos').forEach(el => { el.style.display = DB._servidoresJornada === false ? 'none' : ''; });
+}
+
+function renderExpedienteForm(exp) {
+  const tbody = document.getElementById('fExpedienteGrid');
+  tbody.innerHTML = DIAS_SEMANA.map(([k, nome]) => {
+    const d = exp && exp[k];
+    const ativo = !!(d && HORA_RE.test(d.ini || '') && HORA_RE.test(d.fim || ''));
+    const intAtual = d && INTERVALOS.includes(Number(d.int)) ? Number(d.int) : 60;
+    return '<tr>' +
+      '<td><label><input type="checkbox" id="expAtivo_' + k + '"' + (ativo ? ' checked' : '') + ' onchange="alternarDiaExpediente(\'' + k + '\')"> ' + nome + '</label></td>' +
+      '<td><input type="time" id="expIni_' + k + '" value="' + (ativo ? esc(d.ini) : '') + '" aria-label="Entrada de ' + nome + '"' + (ativo ? '' : ' disabled') + ' oninput="atualizarTotalExpediente()"></td>' +
+      '<td><input type="time" id="expFim_' + k + '" value="' + (ativo ? esc(d.fim) : '') + '" aria-label="Saída de ' + nome + '"' + (ativo ? '' : ' disabled') + ' oninput="atualizarTotalExpediente()"></td>' +
+      '<td><select id="expInt_' + k + '" aria-label="Intervalo de ' + nome + '"' + (ativo ? '' : ' disabled') + ' onchange="atualizarTotalExpediente()">' +
+        INTERVALOS.map(m => '<option value="' + m + '"' + (m === intAtual ? ' selected' : '') + '>' + (m === 0 ? 'Sem intervalo' : m < 60 ? m + ' min' : (m / 60).toString().replace('.', ',') + ' h') + '</option>').join('') +
+      '</select></td></tr>';
+  }).join('');
+  atualizarTotalExpediente();
+}
+
+function alternarDiaExpediente(k) {
+  const ativo = document.getElementById('expAtivo_' + k).checked;
+  ['expIni_', 'expFim_', 'expInt_'].forEach(p => { document.getElementById(p + k).disabled = !ativo; });
+  if (ativo && !document.getElementById('expIni_' + k).value) {
+    document.getElementById('expIni_' + k).value = '08:00';
+    document.getElementById('expFim_' + k).value = '17:00';
+  }
+  atualizarTotalExpediente();
+}
+
+function repetirSegundaNosDiasUteis() {
+  const ini = document.getElementById('expIni_seg').value, fim = document.getElementById('expFim_seg').value;
+  const intv = document.getElementById('expInt_seg').value;
+  if (!document.getElementById('expAtivo_seg').checked || !ini || !fim) { showToast('Preencha primeiro o horário de segunda-feira.', 'error'); return; }
+  ['ter', 'qua', 'qui', 'sex'].forEach(k => {
+    document.getElementById('expAtivo_' + k).checked = true;
+    ['expIni_', 'expFim_', 'expInt_'].forEach(p => { document.getElementById(p + k).disabled = false; });
+    document.getElementById('expIni_' + k).value = ini;
+    document.getElementById('expFim_' + k).value = fim;
+    document.getElementById('expInt_' + k).value = intv;
+  });
+  atualizarTotalExpediente();
+}
+
+// Lê a grade; devolve { erro } se algum dia marcado estiver incompleto
+function lerExpedienteForm() {
+  const exp = {};
+  for (const [k, nome] of DIAS_SEMANA) {
+    if (!document.getElementById('expAtivo_' + k).checked) continue;
+    const ini = document.getElementById('expIni_' + k).value, fim = document.getElementById('expFim_' + k).value;
+    if (!HORA_RE.test(ini) || !HORA_RE.test(fim)) return { erro: 'Informe entrada e saída de ' + nome + ' (ou desmarque o dia).' };
+    if (ini === fim) return { erro: 'Entrada e saída de ' + nome + ' estão iguais.' };
+    exp[k] = { ini, fim, int: Number(document.getElementById('expInt_' + k).value) || 0 };
+    if (minutosDoDia(exp[k]) <= 0) return { erro: 'O intervalo de ' + nome + ' é maior que o expediente.' };
+  }
+  return { exp: Object.keys(exp).length ? exp : null };
+}
+
+function minutosDoDia(d) {
+  if (!d || !HORA_RE.test(d.ini || '') || !HORA_RE.test(d.fim || '')) return 0;
+  const [h1, m1] = d.ini.split(':').map(Number), [h2, m2] = d.fim.split(':').map(Number);
+  let min = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (min < 0) min += 24 * 60; // turno que passa da meia-noite
+  return min - (Number(d.int) || 0);
+}
+
+function horasSemanaisExpediente(exp) {
+  if (!exp) return 0;
+  return DIAS_SEMANA.reduce((t, [k]) => t + Math.max(0, minutosDoDia(exp[k])), 0) / 60;
+}
+
+function formatarHoras(h) {
+  const total = Math.round(h * 60), hh = Math.floor(total / 60), mm = total % 60;
+  return hh + ' h' + (mm ? ' ' + String(mm).padStart(2, '0') + ' min' : '');
+}
+
+// "Seg a Sex, 08:00 às 17:00 (intervalo de 1 h); Sáb, 08:00 às 12:00"
+function resumoExpediente(exp) {
+  if (!exp || typeof exp !== 'object') return '';
+  const grupos = [];
+  DIAS_SEMANA.forEach(([k, , abrev], i) => {
+    const d = exp[k];
+    if (!d || !HORA_RE.test(d.ini || '') || !HORA_RE.test(d.fim || '')) return;
+    const chave = d.ini + '|' + d.fim + '|' + (Number(d.int) || 0);
+    const ult = grupos[grupos.length - 1];
+    if (ult && ult.chave === chave && ult.ultimoIdx === i - 1) { ult.fimDia = abrev; ult.ultimoIdx = i; ult.n++; }
+    else grupos.push({ chave, iniDia: abrev, fimDia: abrev, ultimoIdx: i, n: 1, d });
+  });
+  return grupos.map(g => {
+    const dias = g.n === 1 ? g.iniDia : g.n === 2 ? g.iniDia + ' e ' + g.fimDia : g.iniDia + ' a ' + g.fimDia;
+    const intv = Number(g.d.int) || 0;
+    return dias + ', ' + g.d.ini + ' às ' + g.d.fim +
+      (intv ? ' (intervalo de ' + (intv < 60 ? intv + ' min' : (intv / 60).toString().replace('.', ',') + ' h') + ')' : '');
+  }).join('; ');
+}
+
+// Para documentos: "de segunda a sexta-feira, das 8h às 17h, com intervalo de 1 hora; e aos sábados, das 8h às 12h"
+function expedientePorExtenso(exp) {
+  if (!exp || typeof exp !== 'object') return '';
+  const nome = { seg: 'segunda', ter: 'terça', qua: 'quarta', qui: 'quinta', sex: 'sexta', sab: 'sábado', dom: 'domingo' };
+  const plural = { seg: 'às segundas-feiras', ter: 'às terças-feiras', qua: 'às quartas-feiras', qui: 'às quintas-feiras',
+                   sex: 'às sextas-feiras', sab: 'aos sábados', dom: 'aos domingos' };
+  const util = k => !['sab', 'dom'].includes(k);
+  // "de segunda a sexta-feira", "de segunda-feira a sábado"
+  const faixa = (a, b) => 'de ' + (util(a) && !util(b) ? nome[a] + '-feira' : nome[a]) + ' a ' + (util(b) ? nome[b] + '-feira' : nome[b]);
+  const hora = h => { const [hh, mm] = h.split(':').map(Number); return hh + 'h' + (mm ? String(mm).padStart(2, '0') : ''); };
+  const grupos = [];
+  DIAS_SEMANA.forEach(([k], i) => {
+    const d = exp[k];
+    if (!d || !HORA_RE.test(d.ini || '') || !HORA_RE.test(d.fim || '')) return;
+    const chave = d.ini + '|' + d.fim + '|' + (Number(d.int) || 0);
+    const ult = grupos[grupos.length - 1];
+    if (ult && ult.chave === chave && ult.ultimoIdx === i - 1) { ult.fim = k; ult.ultimoIdx = i; ult.n++; }
+    else grupos.push({ chave, ini: k, fim: k, ultimoIdx: i, n: 1, d });
+  });
+  const partes = grupos.map(g => {
+    const dias = g.n === 1 ? plural[g.ini] : g.n === 2 ? plural[g.ini] + ' e ' + plural[g.fim] : faixa(g.ini, g.fim);
+    const intv = Number(g.d.int) || 0;
+    return dias + ', das ' + hora(g.d.ini) + ' às ' + hora(g.d.fim) +
+      (intv ? ', com intervalo de ' + (intv < 60 ? intv + ' minutos' : intv === 60 ? '1 hora' : (intv / 60).toString().replace('.', ',') + ' horas') : '');
+  });
+  return partes.length > 1 ? partes.slice(0, -1).join('; ') + '; e ' + partes[partes.length - 1] : (partes[0] || '');
+}
+
+function atualizarTotalExpediente() {
+  const el = document.getElementById('fExpedienteTotal');
+  if (!el || !document.getElementById('expAtivo_seg')) return;
+  const r = lerExpedienteForm();
+  const carga = parseInt(document.getElementById('fCarga').value, 10);
+  if (r.erro) { el.textContent = r.erro; el.style.color = 'var(--danger)'; return; }
+  const h = horasSemanaisExpediente(r.exp);
+  if (!r.exp) { el.textContent = 'Nenhum dia marcado.'; el.style.color = 'var(--gray-400)'; return; }
+  const difere = carga > 0 && Math.abs(h - carga) >= 0.01;
+  el.textContent = 'Total do expediente: ' + formatarHoras(h) + ' por semana' +
+    (difere ? ' — diferente da carga horária informada (' + carga + ' h).' : '.');
+  el.style.color = difere ? 'var(--warning)' : 'var(--gray-500)';
 }
 
 // Digitação da data DD/MM: insere a barra automaticamente
@@ -5937,6 +6524,21 @@ async function saveServidor() {
     showToast('Email do servidor em formato inválido.', 'error');
     return;
   }
+  // Dados funcionais e jornada
+  const comJornada = DB._servidoresJornada !== false;
+  const cargo = document.getElementById('fCargo').value.trim().replace(/\s+/g, ' ');
+  const vinculo = document.getElementById('fVinculo').value;
+  const admissao = document.getElementById('fAdmissao').value;
+  const cargaTxt = document.getElementById('fCarga').value.trim();
+  const carga = cargaTxt ? Number(cargaTxt) : null;
+  if (comJornada) {
+    if (cargaTxt && !(Number.isInteger(carga) && carga >= 1 && carga <= 60)) {
+      showToast('Carga horária semanal: use um número inteiro de 1 a 60.', 'error'); return;
+    }
+    if (admissao && !/^\d{4}-\d{2}-\d{2}$/.test(admissao)) { showToast('Data de admissão inválida.', 'error'); return; }
+  }
+  const leitura = comJornada ? lerExpedienteForm() : { exp: null };
+  if (leitura.erro) { showToast(leitura.erro, 'error'); return; }
   if (!exigirOnline()) return;
 
   const servidor = {
@@ -5949,6 +6551,12 @@ async function saveServidor() {
     local,
     foto: getFotoAtual(editingIndex) || ''
   };
+  if (comJornada) {
+    Object.assign(servidor, {
+      cargo: cargo || null, vinculo: vinculo || null, data_admissao: admissao || null,
+      carga_horaria_semanal: carga, expediente: leitura.exp
+    });
+  }
 
   await comBotaoOcupado(document.getElementById('btnSalvarServidor'), async () => {
     if (editingIndex === null) {
@@ -5977,19 +6585,52 @@ function openConfirmDelete(idx) {
   if (!requireAdmin('excluir servidor')) return;
   if (!servidores[idx]) return;
   deleteIndex = idx;
-  document.getElementById('confirmName').textContent = servidores[idx].nome;
+  const s = servidores[idx];
+  document.getElementById('confirmName').textContent = s.nome;
+  const extra = document.getElementById('confirmExtra');
+  const btn = document.getElementById('confirmDeleteBtn');
+  extra.style.display = 'none';
+  extra.textContent = '';
   openModal('modalConfirm');
+  // Histórico e atestados do servidor são apagados junto: avisa antes, com as quantidades
+  if (s.id != null && DB._online) {
+    btn.disabled = true;
+    DB.contarRegistrosServidor(s.id).then(c => {
+      if (deleteIndex !== idx) return;
+      if (c === null) {
+        // Sem saber o que seria apagado junto, não deixa excluir
+        extra.textContent = 'Não foi possível conferir se este servidor tem atestados ou histórico (que seriam apagados junto). Feche e tente de novo.';
+        extra.style.display = '';
+        return;
+      }
+      btn.disabled = false;
+      deleteContagem = c;
+      if (c.atestados || c.historico) {
+        extra.textContent = 'Atenção: junto com o cadastro serão apagados ' +
+          [c.atestados && c.atestados + ' atestado(s)', c.historico && c.historico + ' registro(s) do histórico de serviço'].filter(Boolean).join(' e ') +
+          '. Se a pessoa saiu e esses registros precisam ser guardados, gere antes o PDF do histórico e baixe os atestados.';
+        extra.style.display = '';
+      }
+    });
+  }
 }
+let deleteContagem = null;
 
 async function confirmDelete(btn) {
   if (!requireAdmin('excluir servidor')) return;
   if (deleteIndex === null || !servidores[deleteIndex]) return;
   if (!exigirOnline()) return;
   const s = servidores[deleteIndex];
+  const contagem = deleteContagem;
   await comBotaoOcupado(btn, async () => {
     if (s.id != null) {
       const r = await DB.deleteServidor(s.id);
       if (!r.ok) { showToast('Não foi possível excluir: ' + errMsg(r.error), 'error'); return; }
+      if (contagem && (contagem.atestados || contagem.historico)) {
+        await DB.addAuditEntry({ type: 'remove', performedBy: currentUser.nome, performedByEmail: currentUser.email,
+          targetUser: s.nome, targetEmail: '',
+          description: `${currentUser.nome} excluiu o servidor ${s.nome} (com ${contagem.atestados} atestado(s) e ${contagem.historico} registro(s) de histórico)` });
+      }
     }
     const pos = servidores.indexOf(s);
     if (pos >= 0) servidores.splice(pos, 1);
@@ -6001,7 +6642,11 @@ async function confirmDelete(btn) {
   });
 }
 
-function closeConfirm() { document.getElementById('modalConfirm').classList.remove('open'); deleteIndex = null; }
+function closeConfirm() {
+  document.getElementById('modalConfirm').classList.remove('open');
+  document.getElementById('confirmDeleteBtn').disabled = false;
+  deleteIndex = null; deleteContagem = null;
+}
 
 // ===== MODAL HELPERS =====
 function openModal(id) { document.getElementById(id).classList.add('open'); }
@@ -6014,6 +6659,10 @@ document.addEventListener('keydown', function(e) {
   if (e.key !== 'Escape') return;
   closeModal(); closeConfirm(); closeFotoModal(); closeCracha(); closeRoleChangeModal(); closeChangePassword();
   closeResetPasswordModal(); closeEditUser(); closeModalLocal(); closeModalFerias(); closeModalSolicitacao(); closeRequestAccess(); closeRecoveryModal();
+  // A declaração abre por cima do histórico: o Esc fecha só a de cima
+  const declaracaoAberta = document.getElementById('modalDeclaracao').classList.contains('open');
+  closeDeclaracao(); closeModalAtestado();
+  if (!declaracaoAberta) closeHistorico();
   const lgpd = document.getElementById('lgpdConsent');
   if (lgpd.dataset.modo === 'info') lgpd.classList.remove('open');
   if (document.getElementById('sidebar').classList.contains('open')) closeSidebar();
@@ -7156,6 +7805,39 @@ async function saveEditUser() {
 // ============================================================
 let editingLocalId = null;
 
+// Cores bem distintas entre si (usadas quando o local ainda não tem cor escolhida)
+const PALETA_LOCAIS = ['#1a4493', '#e4572e', '#17a398', '#f2a541', '#8e44ad', '#2e86de',
+                       '#c0392b', '#27ae60', '#d35400', '#e84393', '#6c5ce7', '#7f8c8d'];
+function corValida(c) { return /^#[0-9a-f]{6}$/i.test(String(c || '')) ? String(c) : null; }
+// Cor do local pelo nome: a escolhida no cadastro ou uma automática, estável pela ordem de criação
+function corDoLocal(nome) {
+  const locais = DB.getLocaisSync().slice().sort((a, b) => Number(a.id) - Number(b.id));
+  const pos = locais.findIndex(l => l.nome === nome);
+  if (pos >= 0 && corValida(locais[pos].cor)) return locais[pos].cor;
+  if (pos >= 0) return PALETA_LOCAIS[pos % PALETA_LOCAIS.length];
+  let h = 0;
+  for (const ch of String(nome || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return PALETA_LOCAIS[h % PALETA_LOCAIS.length];
+}
+function pontoCorLocal(nome) {
+  return '<span class="local-dot" style="background:' + corDoLocal(nome) + ';" aria-hidden="true"></span>';
+}
+function montarSugestoesCor(atual) {
+  const wrap = document.getElementById('fLocalCorSugestoes');
+  wrap.innerHTML = PALETA_LOCAIS.map(c =>
+    '<button type="button" class="cor-sugestao" style="background:' + c + ';" data-cor="' + c + '" title="' + c + '" aria-label="Usar a cor ' + c + '"' +
+    (c.toLowerCase() === String(atual).toLowerCase() ? ' aria-pressed="true"' : ' aria-pressed="false"') + '></button>').join('');
+  wrap.querySelectorAll('button').forEach(b => b.onclick = () => {
+    document.getElementById('fLocalCor').value = b.dataset.cor;
+    marcarSugestaoCor(b.dataset.cor);
+  });
+}
+// Marca a sugestão igual à cor escolhida (ou nenhuma, se a cor veio do seletor livre)
+function marcarSugestaoCor(cor) {
+  document.querySelectorAll('#fLocalCorSugestoes button').forEach(x =>
+    x.setAttribute('aria-pressed', x.dataset.cor.toLowerCase() === String(cor).toLowerCase() ? 'true' : 'false'));
+}
+
 function populateLocalSelects() {
   // Popula os selects de local com os locais ativos
   const locaisAtivos = DB.getLocaisAtivos().sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
@@ -7199,7 +7881,7 @@ async function renderLocaisTable() {
       ? '<span class="badge" style="background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;">Ativo</span>'
       : '<span class="badge" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">Inativo</span>';
     return `<tr>
-      <td><strong><i class="fas ${icon}" style="color:var(--sky);margin-right:6px;" aria-hidden="true"></i>${nomeEsc}</strong></td>
+      <td><strong>${pontoCorLocal(l.nome)}<i class="fas ${icon}" style="color:var(--sky);margin-right:6px;" aria-hidden="true"></i>${nomeEsc}</strong></td>
       <td>${esc(l.tipo || '—')}</td>
       <td>${statusBadge}</td>
       <td><span class="badge badge-local">${count} servidor${count !== 1 ? 'es' : ''}</span></td>
@@ -7220,6 +7902,12 @@ function openModalLocal() {
   document.getElementById('fLocalNome').value = '';
   document.getElementById('fLocalTipo').value = '';
   document.getElementById('fLocalStatus').value = 'ativo';
+  // Novo local já sugere uma cor que ainda não está em uso
+  const usadas = new Set(DB.getLocaisSync().map(l => corDoLocal(l.nome).toLowerCase()));
+  const livre = PALETA_LOCAIS.find(c => !usadas.has(c.toLowerCase())) || PALETA_LOCAIS[0];
+  document.getElementById('fLocalCor').value = livre;
+  montarSugestoesCor(livre);
+  document.getElementById('fLocalCorGrupo').style.display = DB._locaisComCor === false ? 'none' : '';
   document.getElementById('modalLocal').classList.add('open');
 }
 
@@ -7232,6 +7920,10 @@ function openEditLocal(id) {
   document.getElementById('fLocalNome').value = local.nome;
   document.getElementById('fLocalTipo').value = local.tipo || '';
   document.getElementById('fLocalStatus').value = local.status;
+  const cor = corDoLocal(local.nome);
+  document.getElementById('fLocalCor').value = cor;
+  montarSugestoesCor(cor);
+  document.getElementById('fLocalCorGrupo').style.display = DB._locaisComCor === false ? 'none' : '';
   document.getElementById('modalLocal').classList.add('open');
 }
 
@@ -7249,6 +7941,7 @@ async function saveLocal() {
   const nome = document.getElementById('fLocalNome').value.trim().replace(/\s+/g, ' ');
   const tipo = document.getElementById('fLocalTipo').value;
   const status = document.getElementById('fLocalStatus').value;
+  const cor = corValida(document.getElementById('fLocalCor').value);
 
   if (!nome) { showToast('Nome do local é obrigatório.', 'error'); return; }
 
@@ -7261,7 +7954,7 @@ async function saveLocal() {
     if (editingLocalId) {
       const old = locais.find(l => l.id === editingLocalId);
       const oldNome = old ? old.nome : '';
-      const r = await DB.updateLocal(editingLocalId, { nome, tipo, status });
+      const r = await DB.updateLocal(editingLocalId, cor ? { nome, tipo, status, cor } : { nome, tipo, status });
       if (!r.ok) { showToast('Não foi possível salvar: ' + errMsg(r.error), 'error'); return; }
 
       // Nome mudou: atualiza os servidores (e registros de férias) desse local
@@ -7275,13 +7968,14 @@ async function saveLocal() {
       }
       showToast(`Local "${nome}" atualizado!`, 'success');
     } else {
-      const r = await DB.addLocal({ nome, tipo, status });
+      const r = await DB.addLocal({ nome, tipo, status, cor });
       if (!r.ok) { showToast('Não foi possível criar: ' + errMsg(r.error), 'error'); return; }
       showToast(`Local "${nome}" criado!`, 'success');
     }
     closeModalLocal();
     renderLocaisTable();
     populateLocalSelects();
+    refreshAll(); // cor nova no gráfico e nas etiquetas
   });
 }
 
@@ -7834,6 +8528,7 @@ async function renderMinhasSolicitacoes() {
     semVinculo.style.display = '';
     card.style.display = 'none';
     btnNovo.style.display = 'none';
+    document.getElementById('atestCard').style.display = 'none';
     minhasSolicitacoes = [];
     return;
   }
@@ -7842,6 +8537,7 @@ async function renderMinhasSolicitacoes() {
   btnNovo.style.display = '';
   const serv = servidorPorId(sid);
   document.getElementById('solicTitulo').textContent = 'Pedidos e registros de ' + (serv ? serv.nome : currentUser.nome);
+  renderMeusAtestados(); // em paralelo com a lista de pedidos
 
   tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--gray-400);"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Carregando...</td></tr>';
   const linhas = await DB.getFeriasDoServidor(sid);
@@ -7998,6 +8694,855 @@ async function cancelarSolicitacao(id, btn) {
   });
 }
 
+// ============================================================
+// ===== HISTÓRICO DE SERVIÇO =================================
+// ============================================================
+const HIST_TIPO_LABEL = { admissao: 'Admissão', lotacao: 'Mudança de lotação', cargo: 'Cargo / função', vinculo: 'Vínculo',
+  jornada: 'Jornada', declaracao: 'Declaração emitida', anotacao: 'Anotação', desligamento: 'Desligamento / saída' };
+const HIST_COR = { funcional: '#1a4493', declaracao: '#8e44ad', ferias: '#17a398', atestados: '#e4572e' };
+let histServidor = null;  // servidor aberto no histórico
+let histItens = [];       // vida funcional + férias/folgas + atestados, já em ordem
+let histFalhas = [];
+let histCarregado = false;
+
+function dataBR(iso) { return iso ? isoParaBR(String(iso).slice(0, 10)) : '—'; }
+function dataHoraBR(ts) {
+  const d = ts ? new Date(ts) : null;
+  return d && !isNaN(d) ? d.toLocaleDateString('pt-BR') : '—';
+}
+function dataPorExtenso(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  return (d === 1 ? '1º' : d) + ' de ' + MESES[m - 1].toLowerCase() + ' de ' + y;
+}
+
+// "3 anos e 2 meses"
+function tempoDeServico(isoAdmissao) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoAdmissao || '')) return '';
+  const [y, m, d] = isoAdmissao.split('-').map(Number);
+  const hoje = new Date();
+  let meses = (hoje.getFullYear() - y) * 12 + (hoje.getMonth() + 1 - m);
+  if (hoje.getDate() < d) meses--;
+  if (meses < 0) return 'admissão futura';
+  const anos = Math.floor(meses / 12), resto = meses % 12;
+  const partes = [];
+  if (anos) partes.push(anos + (anos === 1 ? ' ano' : ' anos'));
+  if (resto) partes.push(resto + (resto === 1 ? ' mês' : ' meses'));
+  return partes.length ? partes.join(' e ') : 'menos de 1 mês';
+}
+
+async function openHistorico(idx) {
+  if (!requireAdmin('ver o histórico')) return;
+  const s = servidores[idx];
+  if (!s || s.id == null) return;
+  histServidor = s;
+  histItens = []; histFalhas = []; histCarregado = false;
+  document.getElementById('histTitulo').textContent = 'Histórico de serviço — ' + s.nome;
+  document.getElementById('histFiltro').value = '';
+  mostrarFormAnotacao(false);
+  renderHistoricoResumo();
+  document.getElementById('histLista').innerHTML = '<li class="hist-item"><div class="hist-texto"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Carregando...</div></li>';
+  document.getElementById('modalHistorico').classList.add('open');
+  await carregarHistorico();
+}
+
+function closeHistorico() {
+  const m = document.getElementById('modalHistorico');
+  if (m) m.classList.remove('open');
+}
+
+function renderHistoricoResumo() {
+  const s = histServidor;
+  const campos = [
+    ['Matrícula', s.matricula && s.matricula !== '---' ? s.matricula : '—'],
+    ['Lotação', s.local || '—'],
+    ['Cargo / função', s.cargo || '—'],
+    ['Vínculo', s.vinculo || '—'],
+    ['Admissão', s.data_admissao ? dataBR(s.data_admissao) + ' (' + tempoDeServico(s.data_admissao) + ')' : '—'],
+    ['Carga horária', s.carga_horaria_semanal ? s.carga_horaria_semanal + ' h semanais' : '—'],
+    ['Expediente', resumoExpediente(s.expediente) || '—']
+  ];
+  document.getElementById('histResumo').innerHTML = campos.map(([k, v]) =>
+    '<div' + (k === 'Expediente' ? ' style="grid-column:1/-1;"' : '') + '><dt>' + k + '</dt><dd>' +
+    (k === 'Lotação' && s.local ? pontoCorLocal(s.local) : '') + esc(v) + '</dd></div>').join('');
+}
+
+async function carregarHistorico() {
+  const s = histServidor;
+  const [hist, ferias, atest] = await Promise.all([DB.getHistorico(s.id), DB.getFeriasDoServidor(s.id), DB.getAtestados(s.id)]);
+  if (histServidor !== s) return; // outro servidor foi aberto enquanto carregava
+  const itens = [];
+  if (s.data_admissao && !(hist || []).some(h => h.tipo === 'admissao')) {
+    itens.push({ data: s.data_admissao, cat: 'funcional', titulo: 'Admissão',
+      texto: [s.cargo, s.vinculo].filter(Boolean).join(' · '), meta: 'Data de admissão informada no cadastro' });
+  }
+  (hist || []).forEach(h => itens.push({
+    data: h.data, cat: 'funcional', cor: h.tipo === 'declaracao' ? HIST_COR.declaracao : HIST_COR.funcional,
+    titulo: HIST_TIPO_LABEL[h.tipo] || h.tipo, texto: h.descricao, criadoEm: h.created_at, histId: Number(h.id),
+    meta: (h.automatico ? 'Registro automático' : 'Lançado') + (h.criado_por ? ' por ' + h.criado_por : '') + (h.created_at ? ' em ' + dataHoraBR(h.created_at) : '')
+  }));
+  (ferias || []).map(feriasDaLinha).forEach(f => itens.push({
+    data: f.dataInicio, cat: 'ferias', criadoEm: f.criadoEm,
+    titulo: (TIPO_FERIAS_LABEL[f.tipo] || f.tipo) + ' — ' + String(STATUS_FERIAS_LABEL[f.status] || f.status).toLowerCase(),
+    texto: (temPeriodo(f.tipo) && f.dataFim && f.dataFim !== f.dataInicio ? dataBR(f.dataInicio) + ' a ' + dataBR(f.dataFim) + ' · ' : '') +
+      (Number(f.dias) || 1) + ' dia(s)' + (f.obs ? '\n' + f.obs : ''),
+    meta: f.criadoPor ? 'Lançado por ' + f.criadoPor : ''
+  }));
+  (atest || []).forEach(a => itens.push({
+    data: a.data_inicio, cat: 'atestados', criadoEm: a.created_at, atestadoId: Number(a.id),
+    titulo: 'Atestado — ' + String(STATUS_ATESTADO_LABEL[a.status] || a.status).toLowerCase(),
+    texto: periodoAtestado(a) + ' · ' + Number(a.dias) + ' dia(s)' + (a.motivo ? '\nMotivo: ' + a.motivo : ''),
+    meta: 'Enviado' + (a.criado_por ? ' por ' + a.criado_por : '') + ' em ' + dataHoraBR(a.created_at)
+  }));
+  itens.sort((a, b) => String(b.data).localeCompare(String(a.data)) || String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')));
+  histItens = itens;
+  histFalhas = [hist === null && DB._historicoOk !== false && 'histórico', ferias === null && 'férias e folgas',
+                atest === null && DB._atestadosOk !== false && 'atestados'].filter(Boolean);
+  histCarregado = true;
+  renderHistoricoLista();
+}
+
+function histItensFiltrados() {
+  const f = document.getElementById('histFiltro').value;
+  return histItens.filter(i => !f || i.cat === f);
+}
+
+function renderHistoricoLista() {
+  const filtro = document.getElementById('histFiltro').value;
+  const lista = histItensFiltrados();
+  let html = '';
+  if (histFalhas.length) {
+    html += '<li class="hist-item" style="--hist-cor:var(--danger);"><div class="hist-texto" style="color:var(--danger);">Não foi possível carregar: ' + esc(histFalhas.join(', ')) + '.</div></li>';
+  }
+  if (!lista.length) {
+    html += '<li class="hist-item" style="--hist-cor:var(--gray-300);"><div class="hist-texto" style="color:var(--gray-400);">Nada registrado' + (filtro ? ' neste filtro' : '') + '.</div></li>';
+  }
+  html += lista.map(i => {
+    const cor = i.cor || HIST_COR[i.cat] || HIST_COR.funcional;
+    const acoes =
+      (i.atestadoId ? '<button class="hist-acao" style="color:var(--blue-mid);" onclick="abrirArquivoAtestado(' + i.atestadoId + ')" title="Abrir o atestado" aria-label="Abrir o arquivo do atestado"><i class="fas fa-eye" aria-hidden="true"></i></button>' : '') +
+      (i.histId ? '<button class="hist-acao" onclick="excluirItemHistorico(' + i.histId + ')" title="Excluir" aria-label="Excluir este registro do histórico"><i class="fas fa-trash" aria-hidden="true"></i></button>' : '');
+    return '<li class="hist-item" style="--hist-cor:' + cor + ';">' +
+      '<div class="hist-item-topo"><span class="hist-data">' + dataBR(i.data) + '</span><span class="hist-titulo">' + esc(i.titulo) + '</span>' + acoes + '</div>' +
+      (i.texto ? '<div class="hist-texto">' + esc(i.texto) + '</div>' : '') +
+      (i.meta ? '<div class="hist-meta">' + esc(i.meta) + '</div>' : '') + '</li>';
+  }).join('');
+  document.getElementById('histLista').innerHTML = html;
+}
+
+function mostrarFormAnotacao(mostrar) {
+  const form = document.getElementById('histFormNova');
+  form.style.display = mostrar ? '' : 'none';
+  if (mostrar) {
+    document.getElementById('histNovaData').value = hojeISO();
+    document.getElementById('histNovaTipo').value = 'anotacao';
+    document.getElementById('histNovaDescricao').value = '';
+    document.getElementById('histNovaDescricao').focus();
+  }
+}
+
+async function salvarAnotacaoHistorico() {
+  if (!requireAdmin('lançar no histórico')) return;
+  const s = histServidor;
+  if (!s) return;
+  const data = document.getElementById('histNovaData').value;
+  const tipo = document.getElementById('histNovaTipo').value;
+  const descricao = document.getElementById('histNovaDescricao').value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) { showToast('Informe a data.', 'error'); return; }
+  if (!descricao) { showToast('Escreva a descrição.', 'error'); document.getElementById('histNovaDescricao').focus(); return; }
+  if (!exigirOnline()) return;
+  await comBotaoOcupado(document.getElementById('btnSalvarAnotacao'), async () => {
+    const r = await DB.addHistorico({ servidorId: s.id, data, tipo, descricao });
+    if (!r.ok) {
+      showToast(/historico_servidor/.test(errMsg(r.error)) ? 'O banco ainda não tem o histórico (falta aplicar a migração).' : 'Não foi possível salvar: ' + errMsg(r.error), 'error');
+      return;
+    }
+    await DB.addAuditEntry({ type: 'add', performedBy: currentUser.nome, performedByEmail: currentUser.email,
+      targetUser: s.nome, targetEmail: '', description: `${currentUser.nome} lançou "${HIST_TIPO_LABEL[tipo] || tipo}" no histórico de ${s.nome}` });
+    mostrarFormAnotacao(false);
+    await carregarHistorico();
+    showToast('Anotação salva no histórico.', 'success');
+  });
+}
+
+async function excluirItemHistorico(id) {
+  if (!requireAdmin('excluir do histórico')) return;
+  const s = histServidor;
+  if (!s || !confirm('Excluir este registro do histórico de ' + s.nome + '? Não dá para desfazer.')) return;
+  if (!exigirOnline()) return;
+  const r = await DB.deleteHistorico(id);
+  if (!r.ok) { showToast('Não foi possível excluir: ' + errMsg(r.error), 'error'); return; }
+  await DB.addAuditEntry({ type: 'remove', performedBy: currentUser.nome, performedByEmail: currentUser.email,
+    targetUser: s.nome, targetEmail: '', description: `${currentUser.nome} excluiu um registro do histórico de ${s.nome}` });
+  await carregarHistorico();
+  showToast('Registro excluído do histórico.', 'success');
+}
+
+// Fontes padrão do PDF não têm a seta: troca por "->"
+function textoPDF(t) { return String(t == null ? '' : t).replace(/→/g, '->'); }
+
+function exportHistoricoPDF() {
+  const s = histServidor;
+  if (!s) return;
+  if (!window.jspdf) { showToast('Gerador de PDF indisponível. Verifique a conexão e recarregue a página.', 'error'); return; }
+  // Não emite PDF incompleto
+  if (!histCarregado) { showToast('Aguarde o histórico terminar de carregar.', 'info'); return; }
+  if (histFalhas.length) { showToast('Parte do histórico não carregou (' + histFalhas.join(', ') + '). Feche e abra de novo antes de gerar o PDF.', 'error'); return; }
+  const lista = histItensFiltrados();
+  const filtroSel = document.getElementById('histFiltro');
+  const filtroTxt = filtroSel.value ? filtroSel.options[filtroSel.selectedIndex].textContent : '';
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = pdf.internal.pageSize.getWidth();
+  pdf.setFillColor(15, 42, 94);
+  pdf.rect(0, 0, W, 18, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFontSize(13);
+  pdf.text('Histórico de serviço - Secretaria Municipal de Cultura de Araçatuba', W / 2, 11.5, { align: 'center' });
+  pdf.setTextColor(30, 30, 30);
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(textoPDF(s.nome), 14, 28);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(9.5);
+  const resumo = [
+    'Matrícula: ' + (s.matricula && s.matricula !== '---' ? s.matricula : '-') + '   Lotação: ' + (s.local || '-'),
+    'Cargo/função: ' + (s.cargo || '-') + '   Vínculo: ' + (s.vinculo || '-'),
+    'Admissão: ' + (s.data_admissao ? dataBR(s.data_admissao) + ' (' + tempoDeServico(s.data_admissao) + ')' : '-') +
+      '   Carga horária: ' + (s.carga_horaria_semanal ? s.carga_horaria_semanal + ' h semanais' : '-'),
+    'Expediente: ' + (resumoExpediente(s.expediente) || '-')
+  ];
+  if (filtroTxt) resumo.push('Somente: ' + filtroTxt + ' (filtro aplicado na tela)');
+  let y = 34;
+  resumo.forEach(l => { pdf.splitTextToSize(textoPDF(l), W - 28).forEach(p => { pdf.text(p, 14, y); y += 4.8; }); });
+  pdf.autoTable({
+    startY: y + 2,
+    head: [['Data', 'Registro', 'Detalhes']],
+    body: lista.map(i => [dataBR(i.data), textoPDF(i.titulo), textoPDF((i.texto || '') + (i.meta ? '\n' + i.meta : ''))]),
+    styles: { fontSize: 8.5, cellPadding: 2.5, valign: 'top' },
+    headStyles: { fillColor: [26, 68, 147] },
+    columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 48 } }
+  });
+  const fim = pdf.lastAutoTable ? pdf.lastAutoTable.finalY + 8 : y + 10;
+  pdf.setFontSize(8);
+  pdf.setTextColor(120, 120, 120);
+  pdf.text('Emitido em ' + new Date().toLocaleDateString('pt-BR') + ' por ' + textoPDF(currentUser ? currentUser.nome : '') +
+    '. Contém dados pessoais (LGPD): não compartilhe fora do serviço.', 14, Math.min(fim, 287));
+  pdf.save('historico_' + nomeArquivo(s.nome) + '_' + hojeISO() + '.pdf');
+}
+
+// ============================================================
+// ===== DECLARAÇÃO DE TRABALHO ===============================
+// ============================================================
+const CFG_TIMBRE = 'timbre_documentos';
+const CFG_SIGNATARIO = 'declaracao_signatario';
+const TIMBRE_RE = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/;
+
+// Lê a configuração direto do banco, sem guardar cópia no navegador (o timbre é grande)
+async function lerConfigSemCache(key) {
+  if (!DB._online) return null;
+  const { data, error } = await supabaseClient.from('system_config').select('value').eq('key', key).maybeSingle();
+  return error || !data ? null : data.value;
+}
+async function gravarConfigSemCache(key, value) {
+  if (!DB._online) return { ok: false, error: SEM_CONEXAO };
+  const { error } = await supabaseClient.from('system_config').upsert({ key, value, updated_at: new Date().toISOString() });
+  return error ? { ok: false, error } : { ok: true };
+}
+async function lerSignatarioPadrao() {
+  try { const v = JSON.parse(await lerConfigSemCache(CFG_SIGNATARIO) || '{}'); return v && typeof v === 'object' ? v : {}; }
+  catch (e) { return {}; }
+}
+
+async function openDeclaracao() {
+  if (!requireAdmin('gerar declaração')) return;
+  const s = histServidor;
+  if (!s) return;
+  document.getElementById('declServidorInfo').textContent = 'Servidor: ' + s.nome +
+    (s.matricula && s.matricula !== '---' ? ' — matrícula ' + s.matricula : '');
+  document.getElementById('declTratamento').value = 'neutro';
+  document.getElementById('declFinalidade').value = '';
+  document.getElementById('declDocumento').value = '';
+  document.getElementById('declData').value = hojeISO();
+  document.getElementById('declLembrarSign').checked = false;
+  const comJornada = DB._servidoresJornada !== false;
+  const faltando = [
+    (!s.matricula || s.matricula === '---') && 'matrícula', comJornada && !s.cargo && 'cargo/função',
+    comJornada && !s.data_admissao && 'data de admissão', comJornada && !s.carga_horaria_semanal && 'carga horária',
+    comJornada && !s.expediente && 'horário de expediente'
+  ].filter(Boolean);
+  const aviso = document.getElementById('declFaltando');
+  aviso.style.display = faltando.length ? '' : 'none';
+  aviso.textContent = faltando.length
+    ? 'Faltam no cadastro: ' + faltando.join(', ') + '. O texto sai com [A PREENCHER] nesses pontos: complete o cadastro do servidor ou ajuste o texto antes de gerar.'
+    : '';
+  const ta = document.getElementById('declTexto');
+  ta.oninput = () => { ta.dataset.editado = '1'; };
+  montarTextoDeclaracao(true);
+  document.getElementById('declSignNome').value = '';
+  document.getElementById('declSignCargo').value = '';
+  document.getElementById('modalDeclaracao').classList.add('open');
+  const sign = await lerSignatarioPadrao();
+  document.getElementById('declSignNome').value = sign.nome || '';
+  document.getElementById('declSignCargo').value = sign.cargo || '';
+}
+
+function closeDeclaracao() {
+  const m = document.getElementById('modalDeclaracao');
+  if (m) m.classList.remove('open');
+}
+
+// Monta o texto com os dados do cadastro; não apaga o que o admin já ajustou à mão
+function montarTextoDeclaracao(forcar) {
+  const ta = document.getElementById('declTexto');
+  const s = histServidor;
+  if (!s || (!forcar && ta.dataset.editado === '1')) return;
+  const t = document.getElementById('declTratamento').value;
+  const g = t === 'm' ? { serv: 'servidor', lot: 'lotado', port: 'portador', adm: 'admitido' }
+          : t === 'f' ? { serv: 'servidora', lot: 'lotada', port: 'portadora', adm: 'admitida' }
+          : { serv: 'servidor(a)', lot: 'lotado(a)', port: 'portador(a)', adm: 'admitido(a)' };
+  // Sem pontuação sobrando no fim (o texto já coloca vírgula e ponto)
+  const limpar = v => v.trim().replace(/[\s.,;:]+$/, '');
+  const doc = limpar(document.getElementById('declDocumento').value);
+  const fin = limpar(document.getElementById('declFinalidade').value).replace(/^para\s+/i, '');
+  const falta = '[A PREENCHER]';
+  const mat = s.matricula && s.matricula !== '---' ? s.matricula : falta;
+  const admissao = s.data_admissao ? dataBR(s.data_admissao) : falta;
+  const unidade = s.local || falta;
+  // Terceirizado, estagiário e cedido não são servidores da Prefeitura admitidos por ela
+  const naoServidor = ['Terceirizado', 'Estagiário', 'Cedido'].includes(s.vinculo);
+  let p = 'Declaramos, para os devidos fins, que ' + String(s.nome).toUpperCase() +
+    (doc ? ', ' + g.port + ' do documento ' + doc : '') + ', matrícula nº ' + mat + ', ' +
+    (naoServidor
+      ? 'exerce atividades na Secretaria Municipal de Cultura da Prefeitura Municipal de Araçatuba desde ' + admissao +
+        (s.vinculo ? ' (vínculo: ' + s.vinculo.toLowerCase() + ')' : '') + ', na unidade ' + unidade
+      : 'é ' + g.serv + ' da Prefeitura Municipal de Araçatuba, ' + g.adm + ' em ' + admissao +
+        (s.vinculo ? ' (vínculo: ' + s.vinculo.toLowerCase() + ')' : '') +
+        ', ' + g.lot + ' na Secretaria Municipal de Cultura, na unidade ' + unidade) +
+    ', exercendo o cargo/função de ' + (s.cargo || falta) +
+    ', com carga horária de ' + (s.carga_horaria_semanal ? s.carga_horaria_semanal : falta) + ' horas semanais';
+  const exp = expedientePorExtenso(s.expediente);
+  p += exp ? ', no seguinte horário de expediente: ' + exp + '.' : ', em horário de expediente ' + falta + '.';
+  const partes = [p];
+  if (fin) partes.push('A presente declaração é emitida para ' + fin + '.');
+  partes.push('Por ser verdade, firmamos a presente declaração.');
+  ta.value = partes.join('\n\n');
+  ta.dataset.editado = '';
+}
+
+function carregarImagemDataUrl(url) {
+  return fetch(url).then(r => { if (!r.ok) throw new Error('imagem'); return r.blob(); }).then(b => new Promise((ok, erro) => {
+    const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = erro; fr.readAsDataURL(b);
+  }));
+}
+
+async function gerarDeclaracaoPDF() {
+  if (!requireAdmin('gerar declaração')) return;
+  const s = histServidor;
+  if (!s) return;
+  if (!window.jspdf) { showToast('Gerador de PDF indisponível. Verifique a conexão e recarregue a página.', 'error'); return; }
+  const texto = document.getElementById('declTexto').value.trim();
+  if (!texto) { showToast('O texto da declaração está vazio.', 'error'); return; }
+  const dataIso = /^\d{4}-\d{2}-\d{2}$/.test(document.getElementById('declData').value) ? document.getElementById('declData').value : hojeISO();
+  const signNome = document.getElementById('declSignNome').value.trim().slice(0, 120);
+  const signCargo = document.getElementById('declSignCargo').value.trim().slice(0, 120);
+  const fin = document.getElementById('declFinalidade').value.trim();
+
+  await comBotaoOcupado(document.getElementById('btnGerarDeclaracao'), async () => {
+    const timbreBruto = await lerConfigSemCache(CFG_TIMBRE);
+    const timbre = timbreBruto && TIMBRE_RE.test(timbreBruto) ? timbreBruto : null;
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210, H = 297, ME = 30, MD = 30, larg = W - ME - MD;
+    let topo = 52, limite = H - 30;
+    let fundoPagina = null;
+    if (timbre) {
+      const fmt = timbre.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+      const prop = pdf.getImageProperties(timbre);
+      const ratio = prop.height / prop.width;
+      if (ratio > 0.9) {
+        // Página inteira (margens do timbre vigente: 4,4 cm em cima e 2,5 cm embaixo)
+        fundoPagina = () => pdf.addImage(timbre, fmt, 0, 0, W, H, 'timbre', 'FAST');
+        topo = 56; limite = H - 32;
+      } else {
+        const h = W * ratio;
+        fundoPagina = () => pdf.addImage(timbre, fmt, 0, 0, W, h, 'timbre', 'FAST');
+        topo = h + 20;
+      }
+      fundoPagina();
+    } else {
+      pdf.setFillColor(15, 42, 94);
+      pdf.rect(0, 0, W, 30, 'F');
+      try {
+        const logo = await carregarImagemDataUrl(LOGO_OFICIAL);
+        const p = pdf.getImageProperties(logo);
+        const lh = 22;
+        pdf.addImage(logo, 'PNG', 14, 4, lh * p.width / p.height, lh, 'logo', 'FAST');
+      } catch (e) { /* sem a logo, segue só com o texto */ }
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12);
+      pdf.text('Prefeitura Municipal de Araçatuba', W - 14, 13.5, { align: 'right' });
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10.5);
+      pdf.text('Secretaria Municipal de Cultura', W - 14, 20.5, { align: 'right' });
+    }
+    const novaPagina = () => { pdf.addPage(); if (fundoPagina) fundoPagina(); return timbre ? topo - 8 : 30; };
+
+    pdf.setTextColor(20, 20, 20);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(15);
+    pdf.text('DECLARAÇÃO', W / 2, topo, { align: 'center' });
+    let y = topo + 16;
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(12);
+    const fator = 1.6, alturaLinha = 12 * fator * 25.4 / 72;
+    for (const par of texto.split(/\n\s*\n/)) {
+      const corrido = textoPDF(par.replace(/\s*\n\s*/g, ' ').trim());
+      if (!corrido) continue;
+      // Parágrafo longo é dividido entre páginas, em blocos de linhas que cabem
+      let linhas = pdf.splitTextToSize(corrido, larg);
+      while (linhas.length) {
+        let cabem = Math.floor((limite - y) / alturaLinha);
+        if (cabem < 1) { y = novaPagina(); cabem = Math.floor((limite - y) / alturaLinha); }
+        cabem = Math.max(1, cabem); // nunca fica sem avançar (evita laço sem fim)
+        const bloco = linhas.slice(0, cabem);
+        linhas = linhas.slice(bloco.length);
+        if (linhas.length) {
+          // Bloco que continua na página seguinte: todas as linhas justificadas
+          bloco.forEach((ln, i) => {
+            const palavras = ln.trim().split(/\s+/);
+            const sobra = larg - pdf.getTextWidth(palavras.join(''));
+            if (palavras.length < 2) { pdf.text(ln, ME, y + i * alturaLinha); return; }
+            let x = ME;
+            const gap = sobra / (palavras.length - 1);
+            palavras.forEach(w => { pdf.text(w, x, y + i * alturaLinha); x += pdf.getTextWidth(w) + gap; });
+          });
+        } else {
+          pdf.text(bloco.join(' '), ME, y, { align: 'justify', maxWidth: larg, lineHeightFactor: fator });
+        }
+        y += bloco.length * alturaLinha;
+        if (linhas.length) y = novaPagina();
+      }
+      y += 4;
+    }
+    if (y + 50 > limite) y = novaPagina();
+    y += 6;
+    pdf.text('Araçatuba, ' + dataPorExtenso(dataIso) + '.', W - MD, y, { align: 'right' });
+    y += 30;
+    pdf.setDrawColor(60, 60, 60);
+    pdf.line(W / 2 - 45, y, W / 2 + 45, y);
+    y += 5.5;
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11.5);
+    pdf.text(textoPDF(signNome || '[NOME DE QUEM ASSINA]'), W / 2, y, { align: 'center' });
+    y += 5.5;
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10.5);
+    pdf.text(textoPDF(signCargo || '[CARGO]'), W / 2, y, { align: 'center' });
+    pdf.save('declaracao_trabalho_' + nomeArquivo(s.nome) + '_' + dataIso + '.pdf');
+
+    // Registros: histórico do servidor, auditoria e (se pedido) a assinatura padrão
+    if (document.getElementById('declLembrarSign').checked) {
+      await gravarConfigSemCache(CFG_SIGNATARIO, JSON.stringify({ nome: signNome, cargo: signCargo }));
+    }
+    const rh = await DB.addHistorico({ servidorId: s.id, data: hojeISO(), tipo: 'declaracao',
+      descricao: 'Declaração de trabalho emitida' + (fin ? ' (finalidade: ' + fin.slice(0, 200) + ')' : '') + (signNome ? '. Assinatura: ' + signNome : '') + '.' });
+    await DB.addAuditEntry({ type: 'add', performedBy: currentUser.nome, performedByEmail: currentUser.email,
+      targetUser: s.nome, targetEmail: '', description: `${currentUser.nome} gerou declaração de trabalho de ${s.nome}` });
+    closeDeclaracao();
+    if (rh.ok) await carregarHistorico();
+    showToast('Declaração gerada. Confira o texto e os dados antes de assinar.', 'success');
+  });
+}
+
+// Painel Admin: papel timbrado e assinatura padrão
+async function carregarConfigDocumentos() {
+  if (!isAdminOrAbove() || !document.getElementById('docsCard')) return;
+  const [timbre, sign] = await Promise.all([lerConfigSemCache(CFG_TIMBRE), lerSignatarioPadrao()]);
+  mostrarPreviewTimbre(timbre);
+  document.getElementById('cfgSignNome').value = sign.nome || '';
+  document.getElementById('cfgSignCargo').value = sign.cargo || '';
+}
+
+function mostrarPreviewTimbre(timbre) {
+  const el = document.getElementById('timbrePreview');
+  const ok = !!timbre && TIMBRE_RE.test(timbre);
+  el.style.backgroundImage = ok ? 'url("' + timbre + '")' : 'none';
+  el.textContent = ok ? '' : 'Sem papel timbrado';
+  el.setAttribute('aria-label', ok ? 'Papel timbrado configurado' : 'Sem papel timbrado');
+  document.getElementById('btnRemoverTimbre').disabled = !ok;
+}
+
+function carregarImagem(src) {
+  return new Promise((ok, erro) => { const img = new Image(); img.onload = () => ok(img); img.onerror = erro; img.src = src; });
+}
+function lerComoDataUrl(file) {
+  return new Promise((ok, erro) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = erro; fr.readAsDataURL(file); });
+}
+
+async function enviarTimbre(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file || !requireAdmin('trocar o papel timbrado')) return;
+  if (!['image/png', 'image/jpeg'].includes(file.type)) { showToast('Use uma imagem PNG ou JPG.', 'error'); return; }
+  if (file.size > 8 * 1024 * 1024) { showToast('Imagem grande demais (máx. 8 MB).', 'error'); return; }
+  if (!exigirOnline()) return;
+  let dataUrl;
+  try {
+    const src = URL.createObjectURL(file);
+    const img = await carregarImagem(src);
+    URL.revokeObjectURL(src);
+    // Até 1654 px de largura (A4 a 200 dpi) já fica nítido no PDF
+    const escala = Math.min(1, 1654 / img.width);
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(img.width * escala); cv.height = Math.round(img.height * escala);
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    dataUrl = cv.toDataURL('image/png');
+    if (dataUrl.length > 1500000) dataUrl = cv.toDataURL('image/jpeg', 0.9);
+  } catch (e) { showToast('Não foi possível ler a imagem.', 'error'); return; }
+  const r = await gravarConfigSemCache(CFG_TIMBRE, dataUrl);
+  if (!r.ok) { showToast('Não foi possível salvar: ' + errMsg(r.error), 'error'); return; }
+  await DB.addAuditEntry({ type: 'add', performedBy: currentUser.nome, performedByEmail: currentUser.email,
+    targetUser: '-', targetEmail: '-', description: `${currentUser.nome} trocou o papel timbrado das declarações` });
+  mostrarPreviewTimbre(dataUrl);
+  showToast('Papel timbrado salvo.', 'success');
+}
+
+async function removerTimbre() {
+  if (!requireAdmin('remover o papel timbrado')) return;
+  if (!confirm('Remover o papel timbrado das declarações? As próximas sairão com a faixa e a logo do sistema.')) return;
+  if (!exigirOnline()) return;
+  const { error } = await supabaseClient.from('system_config').delete().eq('key', CFG_TIMBRE);
+  if (error) { showToast('Não foi possível remover: ' + errMsg(error), 'error'); return; }
+  mostrarPreviewTimbre(null);
+  showToast('Papel timbrado removido.', 'success');
+}
+
+async function salvarSignatarioPadrao() {
+  if (!requireAdmin('salvar a assinatura padrão')) return;
+  const nome = document.getElementById('cfgSignNome').value.trim().slice(0, 120);
+  const cargo = document.getElementById('cfgSignCargo').value.trim().slice(0, 120);
+  if (!exigirOnline()) return;
+  await comBotaoOcupado(document.getElementById('btnSalvarSignatario'), async () => {
+    const r = await gravarConfigSemCache(CFG_SIGNATARIO, JSON.stringify({ nome, cargo }));
+    if (!r.ok) { showToast('Não foi possível salvar: ' + errMsg(r.error), 'error'); return; }
+    showToast('Assinatura padrão salva.', 'success');
+  });
+}
+
+// ============================================================
+// ===== ATESTADOS ============================================
+// ============================================================
+// Dado de saúde: o arquivo não fica guardado no navegador e só é baixado quando alguém pede para ver.
+const STATUS_ATESTADO_LABEL = { enviado: 'Aguardando conferência', conferido: 'Conferido', recusado: 'Recusado' };
+const TIPOS_ARQUIVO_ATESTADO = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+const LIMITE_PDF_ATESTADO = 3 * 1024 * 1024;
+let meusAtestados = [];
+let atestadosAdmin = [];
+let atestadoModoAdmin = false;
+
+function badgeStatusAtestado(st) {
+  const cls = st === 'conferido' ? 'aprovado' : st === 'recusado' ? 'rejeitado' : 'pendente';
+  return '<span class="badge-status ' + cls + '">' + esc(STATUS_ATESTADO_LABEL[st] || st) + '</span>';
+}
+function periodoAtestado(a) {
+  return dataBR(a.data_inicio) + (a.data_fim && a.data_fim !== a.data_inicio ? ' a ' + dataBR(a.data_fim) : '');
+}
+function nomeServidorAtestado(a) {
+  const s = servidorPorId(a.servidor_id);
+  return s ? s.nome : (a.criado_por ? '(servidor excluído) ' + a.criado_por : '(servidor excluído)');
+}
+
+// Página do servidor: lista dos próprios atestados
+async function renderMeusAtestados() {
+  const card = document.getElementById('atestCard');
+  const tbody = document.getElementById('atestTbody');
+  const sid = currentUser ? currentUser.servidorId : null;
+  if (sid == null || DB._atestadosOk === false) { card.style.display = 'none'; return; }
+  const lista = await DB.getAtestados(sid);
+  if (lista === null) {
+    if (DB._atestadosOk === false) { card.style.display = 'none'; return; }
+    card.style.display = '';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--danger);">Não foi possível carregar seus atestados.</td></tr>';
+    return;
+  }
+  card.style.display = '';
+  meusAtestados = lista;
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400);">Nenhum atestado enviado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(a => {
+    const id = Number(a.id);
+    const podeCancelar = a.status === 'enviado' && !!a.enviado_por && a.enviado_por === currentUser.auth_uid;
+    const obs = [a.observacao, a.status === 'recusado' && a.motivo ? 'Motivo da recusa: ' + a.motivo : ''].filter(Boolean).join(' | ');
+    return '<tr>' +
+      '<td data-label="Período">' + periodoAtestado(a) + '</td>' +
+      '<td data-label="Situação">' + badgeStatusAtestado(a.status) + '</td>' +
+      '<td data-label="Dias" style="text-align:center;font-weight:600;">' + Number(a.dias) + '</td>' +
+      '<td data-label="Enviado em">' + dataHoraBR(a.created_at) + '</td>' +
+      '<td data-label="Observação" class="cel-larga' + (obs ? '' : ' cel-vazia') + '" style="font-size:12px;color:var(--gray-500);max-width:280px;">' + esc(obs || '-') + '</td>' +
+      '<td class="cel-larga" style="white-space:nowrap;">' +
+        '<button class="btn btn-secondary" style="font-size:11.5px;padding:5px 10px;" onclick="abrirArquivoAtestado(' + id + ')" aria-label="Ver o atestado de ' + periodoAtestado(a) + '"><i class="fas fa-eye" aria-hidden="true"></i> Ver</button> ' +
+        (podeCancelar ? '<button class="btn btn-danger-light" style="font-size:11.5px;padding:5px 10px;" onclick="cancelarMeuAtestado(' + id + ', this)" aria-label="Cancelar o envio do atestado de ' + periodoAtestado(a) + '"><i class="fas fa-ban" aria-hidden="true"></i> Cancelar envio</button>' : '') +
+      '</td></tr>';
+  }).join('');
+}
+
+function openModalAtestado(modoAdmin) {
+  atestadoModoAdmin = !!modoAdmin && isAdminOrAbove();
+  const grupo = document.getElementById('atestServidorGrupo');
+  if (atestadoModoAdmin) {
+    const sel = document.getElementById('atestServidor');
+    sel.innerHTML = '<option value="">Selecione...</option>' + servidores.filter(s => s.id != null)
+      .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'))
+      .map(s => '<option value="' + Number(s.id) + '">' + esc(s.nome) + ' (' + esc(s.local || 'Sem local') + ')</option>').join('');
+    grupo.style.display = '';
+    document.getElementById('atestServidorInfo').textContent = 'Registro feito pela administração (atestado entregue em papel ou por outro meio). Ele já entra como conferido.';
+    document.getElementById('atestModalTitulo').textContent = 'Registrar atestado';
+  } else {
+    const sid = currentUser ? currentUser.servidorId : null;
+    if (sid == null) { showToast('Seu login ainda não está ligado ao seu cadastro de servidor. Fale com o administrador.', 'error'); return; }
+    grupo.style.display = 'none';
+    const serv = servidorPorId(sid);
+    document.getElementById('atestServidorInfo').textContent = 'Servidor: ' + (serv ? serv.nome : currentUser.nome);
+    document.getElementById('atestModalTitulo').textContent = 'Enviar atestado';
+  }
+  ['atestInicio', 'atestFim', 'atestObs'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('atestArquivo').value = '';
+  document.getElementById('modalAtestado').classList.add('open');
+}
+
+function closeModalAtestado() {
+  const m = document.getElementById('modalAtestado');
+  if (m) m.classList.remove('open');
+}
+
+function ajustarFimAtestado() {
+  const ini = document.getElementById('atestInicio').value, fim = document.getElementById('atestFim');
+  if (ini && (!fim.value || fim.value < ini)) fim.value = ini;
+}
+
+// PDF vai como está (até 3 MB); foto é reduzida e gravada em JPEG
+async function prepararArquivoAtestado(file) {
+  if (!file) return { erro: 'Escolha o arquivo do atestado.' };
+  if (!TIPOS_ARQUIVO_ATESTADO.includes(file.type)) return { erro: 'Formato não aceito. Envie PDF, JPG ou PNG.' };
+  if (file.type === 'application/pdf') {
+    if (file.size > LIMITE_PDF_ATESTADO) return { erro: 'O PDF passa de 3 MB. Envie uma foto do atestado ou um PDF menor.' };
+    const dataUrl = await lerComoDataUrl(file);
+    if (!String(dataUrl).startsWith('data:application/pdf;base64,')) return { erro: 'Não foi possível ler o PDF.' };
+    return { dataUrl, tipo: 'application/pdf', nome: file.name };
+  }
+  if (file.size > 20 * 1024 * 1024) return { erro: 'A imagem é grande demais (máx. 20 MB).' };
+  try {
+    const src = URL.createObjectURL(file);
+    const img = await carregarImagem(src);
+    URL.revokeObjectURL(src);
+    const escala = Math.min(1, 1800 / Math.max(img.width, img.height));
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(img.width * escala)); cv.height = Math.max(1, Math.round(img.height * escala));
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    let dataUrl = cv.toDataURL('image/jpeg', 0.85);
+    if (dataUrl.length > 4000000) dataUrl = cv.toDataURL('image/jpeg', 0.6);
+    return { dataUrl, tipo: 'image/jpeg', nome: file.name.replace(/\.[^.]+$/, '') + '.jpg' };
+  } catch (e) {
+    return { erro: 'Não foi possível ler a imagem. Tente outro arquivo.' };
+  }
+}
+
+async function salvarAtestado() {
+  let sid;
+  if (atestadoModoAdmin) {
+    if (!requireAdmin('registrar atestado')) return;
+    sid = Number(document.getElementById('atestServidor').value) || null;
+    if (!sid) { showToast('Escolha o servidor.', 'error'); return; }
+  } else {
+    sid = currentUser ? currentUser.servidorId : null;
+    if (sid == null) { showToast('Seu login ainda não está ligado ao seu cadastro de servidor.', 'error'); return; }
+  }
+  const ini = document.getElementById('atestInicio').value, fim = document.getElementById('atestFim').value;
+  const obs = document.getElementById('atestObs').value.trim().slice(0, 500);
+  if (!ini || !fim) { showToast('Informe o primeiro e o último dia do afastamento.', 'error'); return; }
+  if (fim < ini) { showToast('O último dia não pode ser anterior ao primeiro.', 'error'); return; }
+  if (diasEntreISO(ini, fim) > 367) { showToast('Período longo demais para um atestado.', 'error'); return; }
+  if (!exigirOnline()) return;
+  await comBotaoOcupado(document.getElementById('btnEnviarAtestado'), async () => {
+    const arq = await prepararArquivoAtestado(document.getElementById('atestArquivo').files[0]);
+    if (arq.erro) { showToast(arq.erro, 'error'); return; }
+    const reg = { servidorId: sid, dataInicio: ini, dataFim: fim, observacao: obs, arquivo: arq.dataUrl,
+                  arquivoNome: String(arq.nome).slice(0, 200), arquivoTipo: arq.tipo };
+    if (atestadoModoAdmin) reg.status = 'conferido';
+    const r = await DB.insertAtestado(reg);
+    if (!r.ok) {
+      const m = errMsg(r.error);
+      showToast(/row-level security|policy|permission/i.test(m) ? 'O sistema ainda não aceita atestados por aqui. Avise o administrador.'
+        : /atestados/.test(m) && /exist|schema/i.test(m) ? 'O banco ainda não tem a tabela de atestados (falta aplicar a migração).'
+        : 'Não foi possível enviar: ' + m, 'error');
+      return;
+    }
+    closeModalAtestado();
+    if (atestadoModoAdmin) {
+      const s = servidorPorId(sid);
+      await DB.addAuditEntry({ type: 'add', performedBy: currentUser.nome, performedByEmail: currentUser.email,
+        targetUser: s ? s.nome : '-', targetEmail: '', description: `${currentUser.nome} registrou atestado de ${s ? s.nome : 'servidor'}` });
+      await renderAtestadosPage();
+      showToast('Atestado registrado.', 'success');
+    } else {
+      await renderMeusAtestados();
+      showToast('Atestado enviado! A administração vai conferir.', 'success');
+    }
+  });
+}
+
+// Abre o arquivo numa aba nova (a aba é aberta já no clique, para o navegador não bloquear)
+async function abrirArquivoAtestado(id) {
+  if (!exigirOnline()) return;
+  const janela = window.open('', '_blank');
+  if (janela) {
+    try { janela.document.title = 'Atestado'; janela.document.body.innerHTML = '<p style="font-family:sans-serif;color:#555;padding:24px;">Carregando o atestado...</p>'; } catch (e) {}
+  }
+  const a = await DB.getArquivoAtestado(id);
+  const valido = a && TIPOS_ARQUIVO_ATESTADO.includes(a.arquivo_tipo) && String(a.arquivo || '').startsWith('data:' + a.arquivo_tipo + ';base64,');
+  if (!valido) {
+    if (janela) janela.close();
+    showToast('Não foi possível abrir o arquivo do atestado.', 'error');
+    return;
+  }
+  const bin = atob(a.arquivo.slice(a.arquivo.indexOf(',') + 1));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], { type: a.arquivo_tipo }));
+  if (janela) janela.location.href = url;
+  else {
+    const link = document.createElement('a');
+    link.href = url; link.download = a.arquivo_nome || 'atestado'; link.click();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
+}
+
+async function cancelarMeuAtestado(id, btn) {
+  const a = meusAtestados.find(x => Number(x.id) === id);
+  if (!a || a.status !== 'enviado') return;
+  if (!confirm('Cancelar o envio do atestado de ' + periodoAtestado(a) + '?\n\nClique em OK para cancelar o envio. O arquivo será apagado.')) return;
+  if (!exigirOnline()) return;
+  await comBotaoOcupado(btn, async () => {
+    const r = await DB.cancelarAtestado(id);
+    if (!r.ok) {
+      showToast(r.jaDecidido ? 'Este atestado já foi analisado e não pode mais ser cancelado.' : 'Não foi possível cancelar: ' + errMsg(r.error), 'error');
+    } else {
+      showToast('Envio cancelado.', 'success');
+    }
+    await renderMeusAtestados();
+  });
+}
+
+// Página da administração
+async function renderAtestadosPage() {
+  const tbody = document.getElementById('atestAdminTbody');
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--gray-400);"><i class="fas fa-spinner fa-spin" aria-hidden="true"></i> Carregando...</td></tr>';
+  const lista = await DB.getAtestados(null);
+  if (lista === null) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--danger);">' +
+      (DB._atestadosOk === false ? 'O banco ainda não tem a tabela de atestados (falta aplicar a migração).' : 'Não foi possível carregar os atestados.') + '</td></tr>';
+    return;
+  }
+  atestadosAdmin = lista;
+  mostrarContagemAtestados(lista.filter(a => a.status === 'enviado').length);
+  renderAtestadosTabela();
+}
+
+function renderAtestadosTabela() {
+  const tbody = document.getElementById('atestAdminTbody');
+  const st = document.getElementById('atestFiltroStatus').value;
+  const busca = normTxt(document.getElementById('atestFiltroBusca').value);
+  const lista = atestadosAdmin.filter(a => (!st || a.status === st) && (!busca || normTxt(nomeServidorAtestado(a)).includes(busca)));
+  if (!lista.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--gray-400);"><i class="fas fa-file-medical" style="font-size:24px;margin-bottom:8px;display:block;" aria-hidden="true"></i>' +
+      (st === 'enviado' && !busca ? 'Nenhum atestado aguardando conferência.' : 'Nenhum atestado encontrado.') + '</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(a => {
+    const id = Number(a.id);
+    const nome = esc(nomeServidorAtestado(a));
+    const obs = [a.observacao, a.motivo ? 'Motivo da recusa: ' + a.motivo : '',
+                 a.analisado_por ? (a.status === 'recusado' ? 'Recusado' : 'Conferido') + ' por ' + a.analisado_por + ' em ' + dataHoraBR(a.analisado_em) : '']
+                .filter(Boolean).join(' | ');
+    const decidir = a.status === 'enviado'
+      ? '<button class="btn btn-success btn-icon" onclick="decidirAtestadoAdmin(' + id + ', \'conferido\', this)" title="Conferido" aria-label="Marcar como conferido o atestado de ' + nome + '"><i class="fas fa-check" aria-hidden="true"></i></button> ' +
+        '<button class="btn btn-danger-light btn-icon" onclick="decidirAtestadoAdmin(' + id + ', \'recusado\', this)" title="Recusar" aria-label="Recusar o atestado de ' + nome + '"><i class="fas fa-times" aria-hidden="true"></i></button> '
+      : '';
+    return '<tr' + (a.status === 'enviado' ? ' style="background:#fffbeb;"' : '') + '>' +
+      '<td data-label="Servidor" class="cel-larga"><b>' + nome + '</b></td>' +
+      '<td data-label="Situação">' + badgeStatusAtestado(a.status) + '</td>' +
+      '<td data-label="Período">' + periodoAtestado(a) + '</td>' +
+      '<td data-label="Dias" style="text-align:center;font-weight:600;">' + Number(a.dias) + '</td>' +
+      '<td data-label="Enviado">' + dataHoraBR(a.created_at) + (a.criado_por ? '<div style="font-size:10.5px;color:var(--gray-400);">por ' + esc(a.criado_por) + '</div>' : '') + '</td>' +
+      '<td data-label="Observação" class="cel-larga' + (obs ? '' : ' cel-vazia') + '" style="font-size:12px;color:var(--gray-500);max-width:300px;">' + esc(obs || '-') + '</td>' +
+      '<td class="cel-larga" style="white-space:nowrap;">' +
+        '<button class="btn btn-secondary btn-icon" onclick="abrirArquivoAtestado(' + id + ')" title="Ver arquivo" aria-label="Ver o atestado de ' + nome + '"><i class="fas fa-eye" aria-hidden="true"></i></button> ' +
+        decidir +
+        '<button class="btn btn-delete btn-icon" onclick="excluirAtestadoAdmin(' + id + ')" title="Excluir" aria-label="Excluir o atestado de ' + nome + '"><i class="fas fa-trash" aria-hidden="true"></i></button>' +
+      '</td></tr>';
+  }).join('');
+}
+
+async function decidirAtestadoAdmin(id, status, btn) {
+  if (!requireAdmin('analisar atestados')) return;
+  const a = atestadosAdmin.find(x => Number(x.id) === id);
+  if (!a || a.status !== 'enviado') return;
+  const nome = nomeServidorAtestado(a), periodo = periodoAtestado(a);
+  let motivo = '';
+  if (status === 'conferido') {
+    if (!confirm('Marcar como conferido o atestado de ' + nome + ' (' + periodo + ', ' + Number(a.dias) + ' dia(s))?')) return;
+  } else {
+    const m = prompt('Recusar o atestado de ' + nome + ' (' + periodo + ').\n\nMotivo (o servidor verá este texto):', '');
+    if (m === null) return;
+    motivo = m.trim().slice(0, 500);
+    if (!motivo) { showToast('Informe o motivo da recusa.', 'error'); return; }
+  }
+  if (!exigirOnline()) return;
+  await comBotaoOcupado(btn, async () => {
+    const r = await DB.decidirAtestado(id, status, motivo);
+    if (!r.ok) {
+      showToast(r.jaDecidido ? 'Este atestado já foi analisado ou o envio foi cancelado. A lista foi atualizada.' : 'Não foi possível salvar: ' + errMsg(r.error), 'error');
+      await renderAtestadosPage();
+      return;
+    }
+    await DB.addAuditEntry({ type: status === 'conferido' ? 'approve' : 'reject', performedBy: currentUser.nome,
+      performedByEmail: currentUser.email, targetUser: nome, targetEmail: '',
+      description: `${currentUser.nome} ${status === 'conferido' ? 'conferiu' : 'recusou'} o atestado de ${nome} (${periodo})` });
+    await renderAtestadosPage();
+    showToast(status === 'conferido' ? 'Atestado conferido.' : 'Atestado recusado.', status === 'conferido' ? 'success' : 'info');
+  });
+}
+
+async function excluirAtestadoAdmin(id) {
+  if (!requireAdmin('excluir atestado')) return;
+  const a = atestadosAdmin.find(x => Number(x.id) === id);
+  if (!a) return;
+  const nome = nomeServidorAtestado(a);
+  if (!confirm('Excluir definitivamente o atestado de ' + nome + ' (' + periodoAtestado(a) + ')?\n\nO arquivo será apagado e não poderá ser recuperado.')) return;
+  if (!exigirOnline()) return;
+  const r = await DB.deleteAtestado(id);
+  if (!r.ok) { showToast('Não foi possível excluir: ' + errMsg(r.error), 'error'); return; }
+  await DB.addAuditEntry({ type: 'remove', performedBy: currentUser.nome, performedByEmail: currentUser.email,
+    targetUser: nome, targetEmail: '', description: `${currentUser.nome} excluiu um atestado de ${nome}` });
+  await renderAtestadosPage();
+  showToast('Atestado excluído.', 'success');
+}
+
+function mostrarContagemAtestados(n) {
+  const badge = document.getElementById('atestPendBadge');
+  if (!badge) return;
+  badge.textContent = n;
+  badge.style.display = n > 0 ? '' : 'none';
+  badge.setAttribute('aria-label', n + ' atestado(s) aguardando conferência');
+}
+
+async function atualizarBadgeAtestados() {
+  if (!isAdminOrAbove()) return;
+  const n = await DB.contarAtestadosPendentes();
+  if (n !== null) mostrarContagemAtestados(n);
+}
+
 // --- PDF ---
 function exportFeriasPDF() {
   const lista = getFeriasFiltradas();
@@ -8138,6 +9683,165 @@ function exportFeriasPDF() {
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModalSolicitacao()">Cancelar</button>
       <button class="btn btn-primary" id="btnEnviarPedidoFerias" onclick="salvarSolicitacao()"><i class="fas fa-paper-plane"></i> Enviar pedido</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL HISTÓRICO DE SERVIÇO ===== -->
+<div class="modal-overlay" id="modalHistorico">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-clock-rotate-left"></i><span id="histTitulo">Histórico de serviço</span></div>
+      <button class="modal-close" onclick="closeHistorico()" aria-label="Fechar"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <dl class="hist-resumo" id="histResumo"></dl>
+      <div class="hist-toolbar">
+        <button class="btn btn-primary" style="font-size:12px;padding:7px 12px;" onclick="mostrarFormAnotacao(true)"><i class="fas fa-plus"></i> Nova anotação</button>
+        <button class="btn btn-success" style="font-size:12px;padding:7px 12px;" onclick="openDeclaracao()"><i class="fas fa-file-signature"></i> Declaração de trabalho</button>
+        <button class="btn btn-secondary" style="font-size:12px;padding:7px 12px;" onclick="exportHistoricoPDF()"><i class="fas fa-file-pdf"></i> PDF do histórico</button>
+        <select class="form-input form-select" id="histFiltro" onchange="renderHistoricoLista()" style="max-width:200px;margin-left:auto;" aria-label="Mostrar no histórico">
+          <option value="">Tudo</option>
+          <option value="funcional">Vida funcional e anotações</option>
+          <option value="ferias">Férias, folgas e faltas</option>
+          <option value="atestados">Atestados</option>
+        </select>
+      </div>
+      <div id="histFormNova" style="display:none;background:var(--gray-50);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+        <div class="form-row">
+          <div class="form-group" style="flex:0 0 160px;">
+            <label class="form-label" for="histNovaData">Data <span class="req">*</span></label>
+            <input type="date" class="form-input" id="histNovaData">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label" for="histNovaTipo">Tipo</label>
+            <select class="form-input form-select" id="histNovaTipo">
+              <option value="anotacao">Anotação</option>
+              <option value="admissao">Admissão / início</option>
+              <option value="lotacao">Mudança de lotação</option>
+              <option value="cargo">Cargo / função</option>
+              <option value="vinculo">Vínculo</option>
+              <option value="jornada">Jornada</option>
+              <option value="desligamento">Desligamento / saída</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="histNovaDescricao">Descrição <span class="req">*</span></label>
+          <textarea class="form-input" id="histNovaDescricao" rows="3" maxlength="1000" placeholder="Ex.: Portaria nº [A PREENCHER], designação para coordenar o setor de..."></textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="mostrarFormAnotacao(false)">Cancelar</button>
+          <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" id="btnSalvarAnotacao" onclick="salvarAnotacaoHistorico()"><i class="fas fa-save"></i> Salvar anotação</button>
+        </div>
+      </div>
+      <ul class="hist-lista" id="histLista" aria-live="polite"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL DECLARAÇÃO DE TRABALHO ===== -->
+<div class="modal-overlay" id="modalDeclaracao">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-file-signature"></i><span>Declaração de trabalho</span></div>
+      <button class="modal-close" onclick="closeDeclaracao()" aria-label="Fechar"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <p id="declServidorInfo" style="font-size:12.5px;color:var(--gray-500);margin-bottom:12px;"></p>
+      <div id="declFaltando" role="note" style="display:none;font-size:12px;background:#fff7e6;border:1px solid #f5c26b;color:#7a4b00;border-radius:10px;padding:10px 12px;margin-bottom:12px;"></div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label" for="declTratamento">Tratamento</label>
+          <select class="form-input form-select" id="declTratamento" onchange="montarTextoDeclaracao()">
+            <option value="neutro">o(a) servidor(a)</option>
+            <option value="m">o servidor</option>
+            <option value="f">a servidora</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:0 0 170px;">
+          <label class="form-label" for="declData">Data</label>
+          <input type="date" class="form-input" id="declData">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="declFinalidade">Finalidade (opcional)</label>
+        <input type="text" class="form-input" id="declFinalidade" maxlength="200" placeholder="Ex.: fazer prova junto a instituição de ensino" oninput="montarTextoDeclaracao()">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="declDocumento">Documento de identificação (opcional)</label>
+        <input type="text" class="form-input" id="declDocumento" maxlength="60" autocomplete="off" placeholder="Ex.: RG nº ..." oninput="montarTextoDeclaracao()">
+        <span style="font-size:10.5px;color:var(--gray-400);">Só entra no PDF; não fica guardado no sistema.</span>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label" for="declSignNome">Quem assina</label>
+          <input type="text" class="form-input" id="declSignNome" maxlength="120" placeholder="Nome de quem assina">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label class="form-label" for="declSignCargo">Cargo de quem assina</label>
+          <input type="text" class="form-input" id="declSignCargo" maxlength="120" placeholder="Ex.: Secretária Municipal de Cultura">
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-500);margin:-4px 0 10px;">
+        <input type="checkbox" id="declLembrarSign"> Guardar como assinatura padrão das declarações
+      </label>
+      <div class="form-group">
+        <label class="form-label" for="declTexto">Texto da declaração (pode ajustar antes de gerar)</label>
+        <textarea class="form-input" id="declTexto" rows="9" maxlength="3000" style="line-height:1.55;"></textarea>
+        <button type="button" class="btn btn-secondary" style="font-size:11px;padding:4px 10px;margin-top:6px;" onclick="montarTextoDeclaracao(true)"><i class="fas fa-rotate"></i> Refazer o texto com os dados acima</button>
+      </div>
+      <p style="font-size:11.5px;color:var(--gray-400);line-height:1.5;">
+        O PDF sai com o papel timbrado configurado no Painel Admin. Confira os dados antes de assinar.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDeclaracao()">Cancelar</button>
+      <button class="btn btn-primary" id="btnGerarDeclaracao" onclick="gerarDeclaracaoPDF()"><i class="fas fa-file-pdf"></i> Gerar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL ENVIAR ATESTADO ===== -->
+<div class="modal-overlay" id="modalAtestado">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-file-medical"></i><span id="atestModalTitulo">Enviar atestado</span></div>
+      <button class="modal-close" onclick="closeModalAtestado()" aria-label="Fechar"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" id="atestServidorGrupo" style="display:none;">
+        <label class="form-label" for="atestServidor">Servidor <span class="req">*</span></label>
+        <select class="form-input form-select" id="atestServidor"></select>
+      </div>
+      <p id="atestServidorInfo" style="font-size:12.5px;color:var(--gray-500);margin-bottom:12px;"></p>
+      <div class="form-row">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label" for="atestInicio">Primeiro dia de afastamento <span class="req">*</span></label>
+          <input type="date" class="form-input" id="atestInicio" onchange="ajustarFimAtestado()">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label class="form-label" for="atestFim">Último dia <span class="req">*</span></label>
+          <input type="date" class="form-input" id="atestFim">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="atestArquivo">Arquivo do atestado <span class="req">*</span></label>
+        <input type="file" class="form-input" id="atestArquivo" accept="application/pdf,image/jpeg,image/png,image/webp">
+        <span style="font-size:10.5px;color:var(--gray-400);">PDF (até 3 MB) ou foto (JPG, PNG). Fotos são reduzidas automaticamente.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="atestObs">Observação (opcional)</label>
+        <textarea class="form-input" id="atestObs" rows="2" maxlength="500" placeholder="Ex.: atestado de acompanhamento de familiar"></textarea>
+      </div>
+      <div role="note" style="font-size:11.5px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;border-radius:10px;padding:10px 12px;line-height:1.55;">
+        <i class="fas fa-lock" aria-hidden="true"></i> O atestado é um dado de saúde. O arquivo fica guardado com acesso restrito:
+        só o próprio servidor e a administração de pessoal conseguem abri-lo. Não é necessário que o atestado mostre o CID (código da doença).
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModalAtestado()">Cancelar</button>
+      <button class="btn btn-primary" id="btnEnviarAtestado" onclick="salvarAtestado()"><i class="fas fa-paper-plane"></i> Enviar atestado</button>
     </div>
   </div>
 </div>
